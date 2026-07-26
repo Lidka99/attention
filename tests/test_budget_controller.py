@@ -29,6 +29,14 @@ class BudgetControllerTests(unittest.TestCase):
         self.assertEqual(decision.gate.shape, (3, 4))
         self.assertTrue(torch.isfinite(y).all())
 
+    def test_static_mode_has_the_same_gate_for_every_image(self):
+        module = UCLAChannelAttention(channels=16, groups=4, hidden=8, budget=0.5, mode="static")
+        module.eval()
+        _, decision = module(torch.randn(3, 16, 8, 8))
+        self.assertTrue(torch.equal(decision.gate[0], decision.gate[1]))
+        self.assertEqual(module.controller.uncertainty_weight, 0.0)
+        self.assertEqual(module.controller.adaptive_extra, 0.0)
+
     def test_invalid_grouping_is_rejected(self):
         with self.assertRaises(ValueError):
             UCLAChannelAttention(channels=15, groups=4)

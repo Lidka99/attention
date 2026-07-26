@@ -1,0 +1,31 @@
+# Pilot configuration: validate the controller before a full ImageNet-1K run.
+dataset: imagenet100
+data_dir: /datasets/ILSVRC2012
+num_classes: 100
+image_size: 224
+arch: resnet50
+seed: 42
+batch_size: 128
+workers: 8
+
+attention:
+  type: ucla_channel
+  mode: ucla
+  groups_per_stage: 16
+  hidden: 64
+  budget: 0.65
+  max_budget: 0.90
+  uncertainty_weight: 0.5
+  adaptive_extra: 0.25
+
+training:
+  warmup_epochs: 5
+  pilot_epochs: 20
+  fine_tune_epochs: 10
+  distillation_weight: 0.5
+  brier_weight: 0.1
+  budget_weight: 0.01
+
+# The pilot is launched with torchrun on exactly four GPUs.
+distributed:
+  world_size: 4

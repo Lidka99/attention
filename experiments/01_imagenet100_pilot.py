@@ -66,7 +66,8 @@ def main():
                                max_budget=attention["max_budget"],
                                uncertainty_weight=attention["uncertainty_weight"],
                                adaptive_extra=attention["adaptive_extra"],
-                               temperature=attention.get("temperature", 0.5)).to(context.device)
+                               temperature=attention.get("temperature", 0.5),
+                               mode=attention.get("mode", "ucla")).to(context.device)
         if context.enabled:
             student = DistributedDataParallel(student, device_ids=[context.local_rank])
         teacher = load_teacher(args.teacher_checkpoint, config["num_classes"], context.device) if args.teacher_checkpoint else None

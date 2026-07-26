@@ -124,3 +124,16 @@ Kalibracja może poprawić NLL/ECE, lecz nie powinna zmieniać Top-1 ani latency
 ### Znaczenie metodologiczne
 
 Dzięki temu nie należy porównywać modelu z pruningiem uczonym od pierwszego kroku z baseline'em trenowanym stabilniej. Harmonogram jest częścią zamrożonego protokołu eksperymentalnego.
+
+## Commit 10 — ablation study UCLA / utility-only / static
+
+### Co zostało zrobione
+
+1. Dodano tryb `ucla`, `utility_only` i `static` w tym samym adapterze kanałowym.
+2. Warianty utility-only i static nie używają uncertainty ani adaptacyjnego dodatkowego budżetu.
+3. Dodano trzy pełne konfiguracje ImageNet-100 oraz jawny protokół porównania.
+4. Dodano testy dynamicznej i statycznej semantyki bramek.
+
+### Warunek eksperymentu
+
+Implementacja jest gotowa; wynik naukowy wymaga uruchomienia trzech konfiguracji na tym samym manifeście klas i następnie ewaluacji kalibracji.

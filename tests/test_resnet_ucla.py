@@ -22,6 +22,11 @@ class UCLAResNetTests(unittest.TestCase):
         self.assertEqual(controller.adaptive_extra, 0.1)
         self.assertEqual(controller.temperature, 0.3)
 
+    def test_resnet_accepts_utility_only_mode(self):
+        model = UCLAResNet50(num_classes=3, groups=16, hidden=8, mode="utility_only")
+        self.assertEqual(model.attention[0].mode, "utility_only")
+        self.assertEqual(model.attention[0].controller.adaptive_extra, 0.0)
+
     def test_resnet_attention_is_trainable(self):
         model = UCLAResNet50(num_classes=3, groups=16, hidden=8)
         model.train()
