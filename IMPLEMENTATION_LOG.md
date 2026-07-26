@@ -32,3 +32,16 @@ Ran 4 tests ... OK
 ### Interpretacja
 
 To rozwiązuje blokadę z pierwszego etapu, ale nie jest jeszcze pełnym treningiem ImageNet. Następny krok to podłączenie modułu do bloku ResNet oraz dodanie strat klasyfikacji, distillation, Brier i budżetu.
+
+## Commit 3 — integracja z ResNet-50
+
+### Co zostało zrobione
+
+1. Dodano `UCLAResNet50` oparty na torchvision ResNet-50.
+2. Wstawiono channel attention po `layer1`–`layer4`.
+3. Model zwraca logits oraz diagnostykę budżetu z każdej warstwy.
+4. Dodano testy forwardu ImageNet oraz przepływu gradientu do głowy utility.
+
+### Ograniczenie
+
+Maska zeruje aktywacje, ale nie daje jeszcze fizycznego speedupu — do tego potrzebne będzie grupowe kernel execution albo strukturalny hard pruning. Latency nie będzie deklarowane na podstawie samego proxy FLOPs.
