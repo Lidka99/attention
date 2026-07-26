@@ -111,3 +111,16 @@ Kalibracja może poprawić NLL/ECE, lecz nie powinna zmieniać Top-1 ani latency
 ### Uruchomienie
 
 `PYTHONPATH=src torchrun --standalone --nproc_per_node=4 experiments/01_imagenet100_pilot.py`
+
+## Commit 9 — trójfazowy curriculum treningu
+
+### Co zostało zrobione
+
+1. Warm-up zachowuje pełny budżet i wyłącza kary sparsity.
+2. Faza sparsification zmniejsza budżet liniowo i narasta wagi Brier/budżetu.
+3. Fine-tuning utrzymuje docelowy budżet przez osobną liczbę epok.
+4. Stan fazy jest zapisywany przy każdej epoce w historii eksperymentu.
+
+### Znaczenie metodologiczne
+
+Dzięki temu nie należy porównywać modelu z pruningiem uczonym od pierwszego kroku z baseline'em trenowanym stabilniej. Harmonogram jest częścią zamrożonego protokołu eksperymentalnego.

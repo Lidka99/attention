@@ -15,8 +15,8 @@ from torchvision.models import resnet50
 
 from attentionv3.data import build_imagenet100_loaders, load_or_create_manifest
 from attentionv3.models import UCLAResNet50
-from attentionv3.training import (UCLALoss, barrier, cleanup_distributed, evaluate,
-                                    initialize_distributed, train_one_epoch)
+from attentionv3.training import (BudgetCurriculum, UCLALoss, apply_curriculum, barrier,
+                                    cleanup_distributed, evaluate, initialize_distributed, train_one_epoch)
 
 
 def parse_args():
@@ -75,14 +75,21 @@ def main():
                              distillation_weight=training["distillation_weight"],
                              brier_weight=training["brier_weight"], budget_weight=training["budget_weight"])
         optimizer = torch.optim.AdamW(student.parameters(), lr=1e-3, weight_decay=1e-4)
+        curriculum = BudgetCurriculum(training["warmup_epochs"], training["pilot_epochs"],
+                                      training["fine_tune_epochs"], attention["budget"],
+                                      attention["max_budget"], training["brier_weight"],
+                                      training["budget_weight"])
         history = {"manifest": manifest, "world_size": context.world_size, "epochs": []}
-        for epoch in range(training["warmup_epochs"] + training["pilot_epochs"]):
+        for epoch in range(curriculum.total_epochs):
+            state = curriculum.state_for_epoch(epoch)
+            apply_curriculum(student, criterion, state)
             if hasattr(train_loader.sampler, "set_epoch"):
                 train_loader.sampler.set_epoch(epoch)
             train = train_one_epoch(student, teacher, train_loader, optimizer, criterion, context.device)
             validation = evaluate(student, val_loader, criterion, context.device)
             if context.is_main:
-                history["epochs"].append({"epoch": epoch + 1, "train": train.__dict__, "validation": validation.__dict__})
+                history["epochs"].append({"epoch": epoch + 1, "phase": state.to_dict(),
+                                          "train": train.__dict__, "validation": validation.__dict__})
                 (output_dir / "history.json").write_text(json.dumps(history, indent=2) + "\n")
                 model_to_save = student.module if context.enabled else student
                 torch.save({"epoch": epoch + 1, "model": model_to_save.state_dict(),
