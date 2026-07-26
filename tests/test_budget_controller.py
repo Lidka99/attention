@@ -33,6 +33,18 @@ class BudgetControllerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             UCLAChannelAttention(channels=15, groups=4)
 
+    def test_training_gate_has_straight_through_gradients(self):
+        controller = BudgetController(groups=6, budget=0.5, temperature=0.5)
+        utility = torch.randn(2, 6, requires_grad=True)
+        uncertainty = torch.randn(2, 6, requires_grad=True)
+        output = controller(utility, uncertainty)
+        self.assertTrue(torch.allclose(output.gate, output.gate.round(), atol=1e-6))
+        output.gate.sum().backward()
+        self.assertIsNotNone(utility.grad)
+        self.assertIsNotNone(uncertainty.grad)
+        self.assertGreater(utility.grad.abs().sum().item(), 0.0)
+        self.assertGreater(uncertainty.grad.abs().sum().item(), 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
