@@ -85,3 +85,16 @@ Pętla nie pobiera danych ani nie wybiera klas ImageNet-100. Te decyzje należą
 ### Warunek uruchomienia
 
 Skrypt zakłada strukturę `data_dir/train/<klasa>` i `data_dir/val/<klasa>`. Oficjalny ImageNet validation wymaga wcześniejszego uporządkowania obrazów do folderów klas albo własnego adaptera etykiet.
+
+## Commit 7 — kalibracja i raport końcowy
+
+### Co zostało zrobione
+
+1. Dodano stratyfikowany podział validation na calibration i held-out test.
+2. Dodano temperature scaling dopasowywany wyłącznie na calibration split.
+3. Dodano Top-1, Top-5, NLL, wieloklasowy Brier, ECE oraz latency median/P95.
+4. Dodano skrypt raportu zapisujący surowe i skalibrowane metryki do JSON.
+
+### Interpretacja
+
+Kalibracja może poprawić NLL/ECE, lecz nie powinna zmieniać Top-1 ani latency modelu. Wszystkie trzy grupy metryk trzeba raportować osobno.

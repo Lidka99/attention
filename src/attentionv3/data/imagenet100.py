@@ -106,3 +106,32 @@ def build_imagenet100_loaders(train_dir: str | Path, val_dir: str | Path,
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=workers,
                             pin_memory=True, persistent_workers=workers > 0)
     return train_loader, val_loader, manifest
+
+
+def stratified_calibration_split(dataset: Dataset, fraction: float, seed: int):
+    """Return disjoint calibration/test Subsets with every class represented.
+
+    The dataset must expose remapped ``samples`` like :class:`ImageFolderSubset`.
+    Indices are deterministic for a seed and are saved by the calling script.
+    """
+    from collections import defaultdict
+    from torch.utils.data import Subset
+
+    if not 0 < fraction < 1:
+        raise ValueError("fraction must be in (0, 1)")
+    if not hasattr(dataset, "samples"):
+        raise TypeError("dataset must expose samples for stratified splitting")
+    by_class = defaultdict(list)
+    for index, (_, target) in enumerate(dataset.samples):
+        by_class[target].append(index)
+    generator = random.Random(seed)
+    calibration, test = [], []
+    for target in sorted(by_class):
+        indices = list(by_class[target])
+        generator.shuffle(indices)
+        count = max(1, round(len(indices) * fraction))
+        if count >= len(indices):
+            raise ValueError("each class needs at least two validation samples")
+        calibration.extend(indices[:count])
+        test.extend(indices[count:])
+    return Subset(dataset, sorted(calibration)), Subset(dataset, sorted(test))
