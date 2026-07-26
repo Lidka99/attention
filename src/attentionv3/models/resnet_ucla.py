@@ -26,11 +26,12 @@ class UCLAResNet50(nn.Module):
     def __init__(self, num_classes: int = 1000, groups: int = 16, hidden: int = 64,
                  budget: float = 0.65, max_budget: float = 0.90,
                  uncertainty_weight: float = 0.5, adaptive_extra: float = 0.25,
-                 backbone: ResNet | None = None) -> None:
+                 temperature: float = 0.5, backbone: ResNet | None = None) -> None:
         super().__init__()
         self.backbone = backbone if backbone is not None else resnet50(weights=None)
         self.attention = nn.ModuleList([
-            UCLAChannelAttention(channels, groups, hidden, budget, max_budget)
+            UCLAChannelAttention(channels, groups, hidden, budget, max_budget,
+                                 uncertainty_weight, adaptive_extra, temperature)
             for channels in self.stage_channels
         ])
         # Keep the classifier explicit so changing num_classes never mutates

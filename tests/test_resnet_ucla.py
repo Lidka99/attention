@@ -15,6 +15,13 @@ class UCLAResNetTests(unittest.TestCase):
         self.assertEqual(len(diagnostics), 4)
         self.assertEqual([item.gate.shape[1] for item in diagnostics], [16] * 4)
 
+    def test_resnet_propagates_controller_hyperparameters(self):
+        model = UCLAResNet50(groups=16, uncertainty_weight=0.7, adaptive_extra=0.1, temperature=0.3)
+        controller = model.attention[0].controller
+        self.assertEqual(controller.uncertainty_weight, 0.7)
+        self.assertEqual(controller.adaptive_extra, 0.1)
+        self.assertEqual(controller.temperature, 0.3)
+
     def test_resnet_attention_is_trainable(self):
         model = UCLAResNet50(num_classes=3, groups=16, hidden=8)
         model.train()

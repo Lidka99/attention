@@ -11,7 +11,9 @@ class UCLAChannelAttention(nn.Module):
     """Predict utility and uncertainty for groups of convolutional channels."""
 
     def __init__(self, channels: int, groups: int, hidden: int = 64,
-                 budget: float = 0.65, max_budget: float = 0.90) -> None:
+                 budget: float = 0.65, max_budget: float = 0.90,
+                 uncertainty_weight: float = 0.5, adaptive_extra: float = 0.25,
+                 temperature: float = 0.5) -> None:
         super().__init__()
         if channels % groups != 0:
             raise ValueError("channels must be divisible by groups")
@@ -24,7 +26,9 @@ class UCLAChannelAttention(nn.Module):
         self.uncertainty_head = nn.Sequential(
             nn.Linear(channels, hidden), nn.ReLU(inplace=True), nn.Linear(hidden, groups)
         )
-        self.controller = BudgetController(groups, budget, max_budget)
+        self.controller = BudgetController(
+            groups, budget, max_budget, uncertainty_weight, adaptive_extra, temperature
+        )
 
     def forward(self, x: Tensor) -> tuple[Tensor, BudgetOutput]:
         if x.ndim != 4 or x.shape[1] != self.channels:

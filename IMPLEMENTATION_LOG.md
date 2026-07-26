@@ -72,3 +72,16 @@ Target Brier jest obecnie etykietą błędu predykcji studenta i nie zastępuje 
 ### Granica tego etapu
 
 Pętla nie pobiera danych ani nie wybiera klas ImageNet-100. Te decyzje należą do osobnego modułu danych, aby protokół podziału był jawny i reprodukowalny.
+
+## Commit 6 — dane ImageNet-100 i skrypt pilota
+
+### Co zostało zrobione
+
+1. Dodano deterministyczny wybór 100 klas i manifest JSON z nazwami klas.
+2. Dodano filtrowanie ImageFolder oraz jednoznaczne remapowanie etykiet.
+3. Dodano skrypt pilota student–nauczyciel, który zapisuje historię i checkpoint po każdej epoce.
+4. Dodano testy manifestu i mapowania klas bez potrzeby posiadania ImageNet.
+
+### Warunek uruchomienia
+
+Skrypt zakłada strukturę `data_dir/train/<klasa>` i `data_dir/val/<klasa>`. Oficjalny ImageNet validation wymaga wcześniejszego uporządkowania obrazów do folderów klas albo własnego adaptera etykiet.
