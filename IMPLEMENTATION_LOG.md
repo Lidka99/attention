@@ -59,3 +59,16 @@ Maska zeruje aktywacje, ale nie daje jeszcze fizycznego speedupu — do tego pot
 ### Ograniczenie
 
 Target Brier jest obecnie etykietą błędu predykcji studenta i nie zastępuje cross-entropy. W pełnym treningu trzeba dodać osobny calibration split oraz kalibrację po treningu.
+
+## Commit 5 — pętla treningu student–nauczyciel
+
+### Co zostało zrobione
+
+1. Dodano pętle `train_one_epoch` i `evaluate` dla standardowego `DataLoader`.
+2. Nauczyciel jest zamrażany i używany tylko do distillation.
+3. Każda epoka raportuje accuracy, wszystkie części straty oraz średni keep-ratio.
+4. Dodano test integracyjny na syntetycznych danych.
+
+### Granica tego etapu
+
+Pętla nie pobiera danych ani nie wybiera klas ImageNet-100. Te decyzje należą do osobnego modułu danych, aby protokół podziału był jawny i reprodukowalny.
