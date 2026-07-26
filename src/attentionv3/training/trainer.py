@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import torch
+import torch.distributed as dist
 from torch import Tensor, nn
 
 from .losses import UCLALoss
@@ -96,6 +97,13 @@ def _run_epoch(model: nn.Module, loader: Iterable[object], criterion: UCLALoss,
 
     if samples == 0:
         raise ValueError("loader yielded no batches")
+    if dist.is_available() and dist.is_initialized():
+        names = ("loss", "classification", "distillation", "brier", "budget", "correct", "keep_ratio")
+        reduced = torch.tensor([totals[name] for name in names] + [samples], dtype=torch.float64, device=device)
+        dist.all_reduce(reduced, op=dist.ReduceOp.SUM)
+        for index, name in enumerate(names):
+            totals[name] = reduced[index].item()
+        samples = int(reduced[-1].item())
     return EpochMetrics(
         loss=totals["loss"] / samples,
         accuracy=totals["correct"] / samples,

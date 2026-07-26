@@ -98,3 +98,16 @@ Skrypt zakłada strukturę `data_dir/train/<klasa>` i `data_dir/val/<klasa>`. Of
 ### Interpretacja
 
 Kalibracja może poprawić NLL/ECE, lecz nie powinna zmieniać Top-1 ani latency modelu. Wszystkie trzy grupy metryk trzeba raportować osobno.
+
+## Commit 8 — trening DistributedDataParallel na czterech GPU
+
+### Co zostało zrobione
+
+1. Dodano inicjalizację DDP przez `torchrun` i backend NCCL.
+2. Dodano `DistributedSampler` dla train i validation.
+3. Dodano globalne redukowanie metryk między procesami.
+4. Pilot wymaga czterech procesów/GPU, a tylko rank 0 zapisuje artefakty.
+
+### Uruchomienie
+
+`PYTHONPATH=src torchrun --standalone --nproc_per_node=4 experiments/01_imagenet100_pilot.py`

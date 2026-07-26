@@ -9,6 +9,7 @@ from typing import Any, Sequence
 
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
 from torchvision import datasets, transforms
 
 
@@ -93,7 +94,8 @@ def imagenet_transforms(image_size: int = 224):
 def build_imagenet100_loaders(train_dir: str | Path, val_dir: str | Path,
                                manifest_path: str | Path, seed: int, batch_size: int,
                                workers: int = 8, image_size: int = 224,
-                               num_classes: int = 100) -> tuple[DataLoader, DataLoader, dict[str, Any]]:
+                               num_classes: int = 100, distributed: bool = False,
+                               rank: int = 0, world_size: int = 1) -> tuple[DataLoader, DataLoader, dict[str, Any]]:
     """Build ImageNet-100 loaders from class-organised ImageFolder directories."""
     train_source = datasets.ImageFolder(str(train_dir))
     val_source = datasets.ImageFolder(str(val_dir))
@@ -101,10 +103,12 @@ def build_imagenet100_loaders(train_dir: str | Path, val_dir: str | Path,
     train_transform, val_transform = imagenet_transforms(image_size)
     train_data = ImageFolderSubset(train_source, manifest["class_names"], train_transform)
     val_data = ImageFolderSubset(val_source, manifest["class_names"], val_transform)
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=workers,
-                              pin_memory=True, persistent_workers=workers > 0)
-    val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, num_workers=workers,
-                            pin_memory=True, persistent_workers=workers > 0)
+    train_sampler = DistributedSampler(train_data, num_replicas=world_size, rank=rank, shuffle=True) if distributed else None
+    val_sampler = DistributedSampler(val_data, num_replicas=world_size, rank=rank, shuffle=False) if distributed else None
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=train_sampler is None, sampler=train_sampler,
+                              num_workers=workers, pin_memory=True, persistent_workers=workers > 0)
+    val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, sampler=val_sampler,
+                            num_workers=workers, pin_memory=True, persistent_workers=workers > 0)
     return train_loader, val_loader, manifest
 
 

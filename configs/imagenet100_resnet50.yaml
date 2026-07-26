@@ -24,3 +24,7 @@ training:
   distillation_weight: 0.5
   brier_weight: 0.1
   budget_weight: 0.01
+
+# The pilot is launched with torchrun on exactly four GPUs.
+distributed:
+  world_size: 4
