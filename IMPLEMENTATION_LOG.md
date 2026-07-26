@@ -45,3 +45,17 @@ To rozwiązuje blokadę z pierwszego etapu, ale nie jest jeszcze pełnym trening
 ### Ograniczenie
 
 Maska zeruje aktywacje, ale nie daje jeszcze fizycznego speedupu — do tego potrzebne będzie grupowe kernel execution albo strukturalny hard pruning. Latency nie będzie deklarowane na podstawie samego proxy FLOPs.
+
+## Commit 4 — funkcje strat treningowych
+
+### Co zostało zrobione
+
+1. Dodano cross-entropy jako główny cel klasyfikacyjny.
+2. Dodano KL distillation z temperaturą i odłączonym nauczycielem.
+3. Dodano Brier score, gdzie uncertainty przewiduje prawdopodobieństwo błędu.
+4. Dodano karę za odchylenie średniej liczby aktywnych grup od budżetu.
+5. Dodano `UCLALossBreakdown`, aby każdy składnik był logowany osobno.
+
+### Ograniczenie
+
+Target Brier jest obecnie etykietą błędu predykcji studenta i nie zastępuje cross-entropy. W pełnym treningu trzeba dodać osobny calibration split oraz kalibrację po treningu.
