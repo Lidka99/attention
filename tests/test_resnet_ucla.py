@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from attentionv3.models import UCLAResNet50
+from attentionv3.models import GlobalUCLAResNet50, UCLAResNet50
 
 
 class UCLAResNetTests(unittest.TestCase):
@@ -35,6 +35,19 @@ class UCLAResNetTests(unittest.TestCase):
         loss.backward()
         self.assertIsNotNone(model.attention[0].utility_head[0].weight.grad)
         self.assertTrue(torch.isfinite(logits).all())
+
+    def test_global_resnet_has_exact_shared_budget(self):
+        model = GlobalUCLAResNet50(num_classes=7, groups=16, hidden=8, budget=0.625).eval()
+        with torch.no_grad():
+            _, diagnostics = model(torch.randn(2, 3, 32, 32))
+        totals = torch.stack([item.keep_count for item in diagnostics]).sum(dim=0)
+        self.assertTrue(torch.equal(totals, torch.full((2,), 40)))
+
+    def test_global_resnet_utility_policy_is_trainable(self):
+        model = GlobalUCLAResNet50(num_classes=3, groups=16, hidden=8, budget=0.625)
+        logits, _ = model(torch.randn(2, 3, 32, 32))
+        logits.square().mean().backward()
+        self.assertIsNotNone(model.policy[-1].weight.grad)
 
 
 if __name__ == "__main__":

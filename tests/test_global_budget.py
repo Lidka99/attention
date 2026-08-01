@@ -19,6 +19,13 @@ class GlobalBudgetTests(unittest.TestCase):
         output = allocator(utility, uncertainty)
         self.assertGreater(output.keep_count[0, 1], output.keep_count[0, 0])
 
+    def test_straight_through_gate_has_utility_gradients(self):
+        allocator = GlobalBudgetAllocator(stages=2, groups=4, budget=0.5)
+        utility = torch.randn(2, 2, 4, requires_grad=True)
+        output = allocator(utility, torch.randn(2, 2, 4), straight_through=True)
+        output.gate.sum().backward()
+        self.assertIsNotNone(utility.grad)
+
 
 if __name__ == "__main__":
     unittest.main()
