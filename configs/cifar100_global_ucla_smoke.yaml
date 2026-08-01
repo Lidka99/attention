@@ -1,0 +1,22 @@
+# Smoke configuration only; do not use its 10-epoch result as a publication claim.
+dataset: cifar100
+data_dir: /home/users/s224574/attention/attention_v2/data
+num_classes: 100
+seed: 42
+batch_size: 128
+workers: 4
+attention:
+  global_budget: true
+  mode: ucla
+  groups_per_stage: 16
+  hidden: 64
+  budget: 0.625
+training:
+  warmup_epochs: 2
+  pilot_epochs: 6
+  fine_tune_epochs: 2
+  brier_weight: 0.1
+  budget_weight: 0.01
+  uncertainty_target: hard_error
+distributed:
+  world_size: 4

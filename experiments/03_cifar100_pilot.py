@@ -10,7 +10,7 @@ from torch.nn.parallel import DistributedDataParallel
 from torchvision.models import resnet50
 
 from attentionv3.data import build_cifar100_loaders
-from attentionv3.models import UCLAResNet50
+from attentionv3.models import GlobalUCLAResNet50, UCLAResNet50
 from attentionv3.training import (BudgetCurriculum, UCLALoss, apply_curriculum, cleanup_distributed,
                                   evaluate, initialize_distributed, train_one_epoch)
 
@@ -31,6 +31,12 @@ def cifar_resnet50(config):
                 return self.network(images), []
 
         return Baseline(backbone)
+    if a.get("global_budget", False):
+        model = GlobalUCLAResNet50(config["num_classes"], a["groups_per_stage"], a["hidden"],
+                                   a["budget"], a["mode"])
+        model.backbone.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        model.backbone.maxpool = torch.nn.Identity()
+        return model
     model = UCLAResNet50(config["num_classes"], a["groups_per_stage"], a["hidden"], a["budget"],
                          a["max_budget"], a["uncertainty_weight"], a["adaptive_extra"], mode=a["mode"])
     model.backbone.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)

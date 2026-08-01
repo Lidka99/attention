@@ -25,6 +25,10 @@ jako metody wygrywającej.
 - uncertainty może zmienić *rozkład*, ale nie zwiększa całkowitego kosztu;
 - decyzja jest raportowana per warstwa i per obraz.
 
+Przed uruchomieniem zamrożonego protokołu wykonujemy wyłącznie 10-epokowy
+smoke run na CIFAR-100, aby sprawdzić DDP, gradienty i dokładny globalny
+budżet. Wynik smoke runu nie jest używany w tabeli publikacyjnej.
+
 ## Zamrożone kontrole
 
 1. full ResNet-50 bez bramek;
