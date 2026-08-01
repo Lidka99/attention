@@ -74,11 +74,16 @@ def main():
         history = []
         for epoch in range(schedule.total_epochs):
             state = schedule.state_for_epoch(epoch); apply_curriculum(model, criterion, state)
+            phase_lrs = t.get("learning_rates", {})
+            learning_rate = phase_lrs.get(state.phase, optimizer.param_groups[0]["lr"])
+            for group in optimizer.param_groups:
+                group["lr"] = learning_rate
             if hasattr(train.sampler, "set_epoch"): train.sampler.set_epoch(epoch)
             train_metrics = train_one_epoch(model, None, train, optimizer, criterion, ctx.device)
             test_metrics = evaluate(model, test, criterion, ctx.device)
             if ctx.is_main:
-                history.append({"epoch": epoch + 1, "phase": state.to_dict(), "train": train_metrics.__dict__, "validation": test_metrics.__dict__})
+                history.append({"epoch": epoch + 1, "phase": state.to_dict(), "learning_rate": learning_rate,
+                                "train": train_metrics.__dict__, "validation": test_metrics.__dict__})
                 (output / "history.json").write_text(json.dumps(history, indent=2) + "\n")
                 torch.save({"model": (model.module if ctx.enabled else model).state_dict(), "config": config}, output / "latest.pt")
                 print(f"epoch={epoch + 1} val_top1={test_metrics.accuracy:.4f} keep={test_metrics.mean_keep_ratio:.4f}")

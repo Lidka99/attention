@@ -58,6 +58,14 @@ optymalizatora, batch size i seedów.
 - bez zmian hiperparametrów po rozpoczęciu trzech seedów danego wariantu;
 - kod, YAML, commit, wersje bibliotek i GPU zapisane przy każdym runie.
 
+### Zamrożony harmonogram CIFAR-100 global attention
+
+- 20 epok warm-up (`lr=1e-3`);
+- 120 epok global sparsification (`lr=5e-4`);
+- 60 epok fine-tuning (`lr=1e-4`);
+- batch size 128 na GPU, DDP na czterech GPU;
+- globalny keep-ratio 62,5% (40 z 64 grup) dla każdego obrazu.
+
 ## Kryterium go/no-go
 
 Przejście do Tiny ImageNet wymaga równocześnie:

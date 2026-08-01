@@ -1,0 +1,26 @@
+# Frozen publication protocol — CIFAR-100 global UCLA, three seeds.
+dataset: cifar100
+data_dir: /home/users/s224574/attention/attention_v2/data
+num_classes: 100
+seed: 42
+batch_size: 128
+workers: 4
+attention:
+  global_budget: true
+  mode: ucla
+  groups_per_stage: 16
+  hidden: 64
+  budget: 0.625
+training:
+  warmup_epochs: 20
+  pilot_epochs: 120
+  fine_tune_epochs: 60
+  brier_weight: 0.1
+  budget_weight: 0.01
+  uncertainty_target: hard_error
+  learning_rates:
+    warmup: 0.001
+    sparsification: 0.0005
+    fine_tune: 0.0001
+distributed:
+  world_size: 4
