@@ -8,7 +8,8 @@ from torch import nn
 from torch.utils.data import Dataset
 
 from attentionv3.data import stratified_calibration_split
-from attentionv3.evaluation import TemperatureScaler, benchmark_latency, compute_metrics
+from attentionv3.evaluation import (TemperatureScaler, benchmark_latency, bootstrap_mean_ci,
+                                    compute_metrics, paired_accuracy_delta)
 
 
 def load_evaluation_script():
@@ -53,6 +54,13 @@ class EvaluationTests(unittest.TestCase):
         result = benchmark_latency(nn.Identity(), torch.randn(1, 3), warmup=0, runs=3)
         self.assertEqual(result["runs"], 3)
         self.assertGreaterEqual(result["p95_ms"], result["median_ms"])
+
+    def test_bootstrap_and_paired_delta(self):
+        low, high = bootstrap_mean_ci(torch.tensor([0.0, 1.0, 1.0, 0.0]), repeats=100, seed=1)
+        self.assertLessEqual(low, 0.5)
+        self.assertGreaterEqual(high, 0.5)
+        paired = paired_accuracy_delta(torch.tensor([0, 0]), torch.tensor([0, 1]), torch.tensor([0, 1]), repeats=100)
+        self.assertEqual(paired["accuracy_delta"], 0.5)
 
     def test_evaluation_model_uses_attention_mode_from_config(self):
         script = load_evaluation_script()
