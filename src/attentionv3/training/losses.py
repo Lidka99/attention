@@ -36,7 +36,7 @@ def distillation_loss(student_logits: Tensor, teacher_logits: Tensor,
 
 
 def brier_error_loss(logits: Tensor, targets: Tensor,
-                     diagnostics: Sequence[BudgetOutput]) -> Tensor:
+                     diagnostics: Sequence[BudgetOutput], target: str = "hard_error") -> Tensor:
     """Train uncertainty as the probability that the final prediction is wrong.
 
     The correctness target is detached because it is a label for the
@@ -45,8 +45,13 @@ def brier_error_loss(logits: Tensor, targets: Tensor,
     """
     if not diagnostics:
         return logits.new_zeros(())
-    predicted = logits.detach().argmax(dim=1)
-    error_target = (predicted != targets).float()
+    if target == "hard_error":
+        predicted = logits.detach().argmax(dim=1)
+        error_target = (predicted != targets).float()
+    elif target == "soft_error":
+        error_target = 1.0 - logits.detach().softmax(dim=1).gather(1, targets[:, None]).squeeze(1)
+    else:
+        raise ValueError("target must be hard_error or soft_error")
     uncertainty = torch.stack([item.uncertainty for item in diagnostics]).mean(dim=0)
     return F.mse_loss(uncertainty, error_target)
 
@@ -69,7 +74,8 @@ class UCLALoss(nn.Module):
 
     def __init__(self, target_budget: float = 0.65, groups: int = 16,
                  distillation_weight: float = 0.5, brier_weight: float = 0.1,
-                 budget_weight: float = 0.01, temperature: float = 2.0) -> None:
+                 budget_weight: float = 0.01, temperature: float = 2.0,
+                 uncertainty_target: str = "hard_error") -> None:
         super().__init__()
         self.target_budget = target_budget
         self.groups = groups
@@ -77,6 +83,7 @@ class UCLALoss(nn.Module):
         self.brier_weight = brier_weight
         self.budget_weight = budget_weight
         self.temperature = temperature
+        self.uncertainty_target = uncertainty_target
 
     def forward(self, logits: Tensor, targets: Tensor,
                 diagnostics: Sequence[BudgetOutput],
@@ -84,7 +91,7 @@ class UCLALoss(nn.Module):
         classification = F.cross_entropy(logits, targets)
         distillation = (distillation_loss(logits, teacher_logits, self.temperature)
                         if teacher_logits is not None else logits.new_zeros(()))
-        brier = brier_error_loss(logits, targets, diagnostics)
+        brier = brier_error_loss(logits, targets, diagnostics, self.uncertainty_target)
         budget = budget_loss(diagnostics, self.target_budget, self.groups).to(logits.device)
         total = (classification + self.distillation_weight * distillation
                  + self.brier_weight * brier + self.budget_weight * budget)

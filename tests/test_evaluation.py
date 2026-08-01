@@ -1,4 +1,7 @@
 import unittest
+import importlib.util
+from pathlib import Path
+from unittest.mock import patch
 
 import torch
 from torch import nn
@@ -6,6 +9,15 @@ from torch.utils.data import Dataset
 
 from attentionv3.data import stratified_calibration_split
 from attentionv3.evaluation import TemperatureScaler, benchmark_latency, compute_metrics
+
+
+def load_evaluation_script():
+    path = Path(__file__).parents[1] / "experiments" / "02_calibrate_and_report.py"
+    spec = importlib.util.spec_from_file_location("calibrate_and_report", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class TinyDataset(Dataset):
@@ -41,6 +53,20 @@ class EvaluationTests(unittest.TestCase):
         result = benchmark_latency(nn.Identity(), torch.randn(1, 3), warmup=0, runs=3)
         self.assertEqual(result["runs"], 3)
         self.assertGreaterEqual(result["p95_ms"], result["median_ms"])
+
+    def test_evaluation_model_uses_attention_mode_from_config(self):
+        script = load_evaluation_script()
+        config = {
+            "num_classes": 100,
+            "attention": {
+                "groups_per_stage": 16, "hidden": 64, "budget": 0.65,
+                "max_budget": 0.9, "uncertainty_weight": 0.5,
+                "adaptive_extra": 0.25, "mode": "static",
+            },
+        }
+        with patch.object(script, "UCLAResNet50") as model:
+            script.build_model(config)
+        self.assertEqual(model.call_args.args[-1], "static")
 
 
 if __name__ == "__main__":

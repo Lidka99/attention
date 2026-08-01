@@ -1,0 +1,17 @@
+# Full ResNet-50 control: no channel gates or pruning.
+dataset: cifar100
+data_dir: /home/users/s224574/attention/attention_v2/data
+num_classes: 100
+seed: 42
+batch_size: 128
+workers: 4
+attention:
+  mode: none
+training:
+  warmup_epochs: 2
+  pilot_epochs: 6
+  fine_tune_epochs: 2
+  brier_weight: 0.0
+  budget_weight: 0.0
+distributed:
+  world_size: 4

@@ -44,6 +44,19 @@ class TrainerTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(torch.tensor(train.loss)))
         self.assertFalse(any(parameter.requires_grad for parameter in teacher.parameters()))
 
+    def test_ungated_model_reports_full_keep_ratio(self):
+        class UngatedModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.classifier = nn.Linear(4, 3)
+
+            def forward(self, x):
+                return self.classifier(x), []
+
+        loader = DataLoader(TensorDataset(torch.randn(6, 4), torch.randint(0, 3, (6,))), batch_size=2)
+        metrics = evaluate(UngatedModel(), loader, UCLALoss(groups=1))
+        self.assertEqual(metrics.mean_keep_ratio, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

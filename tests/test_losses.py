@@ -4,6 +4,7 @@ import torch
 
 from attentionv3 import BudgetController
 from attentionv3.training import UCLALoss
+from attentionv3.training.losses import brier_error_loss
 
 
 class LossTests(unittest.TestCase):
@@ -29,6 +30,12 @@ class LossTests(unittest.TestCase):
         breakdown = UCLALoss(groups=8)(logits, targets, self._diagnostics())
         self.assertEqual(breakdown.distillation.item(), 0.0)
         self.assertTrue(torch.isfinite(breakdown.total))
+
+    def test_soft_error_uncertainty_target_is_valid(self):
+        logits = torch.randn(4, 5)
+        targets = torch.tensor([0, 1, 2, 3])
+        loss = brier_error_loss(logits, targets, self._diagnostics(), target="soft_error")
+        self.assertTrue(torch.isfinite(loss))
 
 
 if __name__ == "__main__":

@@ -93,7 +93,10 @@ def _run_epoch(model: nn.Module, loader: Iterable[object], criterion: UCLALoss,
         totals["budget"] += breakdown.budget.detach().item() * batch_size
         totals["correct"] += (logits.detach().argmax(dim=1) == targets).sum().item()
         stage_ratios = [item.keep_count.float().mean().item() / criterion.groups for item in diagnostics]
-        totals["keep_ratio"] += (sum(stage_ratios) / len(stage_ratios)) * batch_size
+        # A full, ungated baseline has no attention diagnostics and therefore
+        # keeps its complete computational path.
+        mean_stage_ratio = sum(stage_ratios) / len(stage_ratios) if stage_ratios else 1.0
+        totals["keep_ratio"] += mean_stage_ratio * batch_size
 
     if samples == 0:
         raise ValueError("loader yielded no batches")

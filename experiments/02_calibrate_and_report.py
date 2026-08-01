@@ -15,6 +15,17 @@ from attentionv3.evaluation import TemperatureScaler, benchmark_latency, collect
 from attentionv3.models import UCLAResNet50
 
 
+def build_model(config: dict) -> UCLAResNet50:
+    """Build the evaluated architecture with the exact training attention mode."""
+    attention = config["attention"]
+    return UCLAResNet50(
+        config["num_classes"], attention["groups_per_stage"], attention["hidden"],
+        attention["budget"], attention["max_budget"], attention["uncertainty_weight"],
+        attention["adaptive_extra"], attention.get("temperature", 0.5),
+        attention.get("mode", "ucla"),
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/imagenet100_resnet50.yaml")
@@ -39,10 +50,7 @@ def main():
                       "pin_memory": True}
     calibration_loader = DataLoader(calibration_data, shuffle=False, **loader_options)
     test_loader = DataLoader(test_data, shuffle=False, **loader_options)
-    attention = config["attention"]
-    model = UCLAResNet50(config["num_classes"], attention["groups_per_stage"], attention["hidden"],
-                         attention["budget"], attention["max_budget"], attention["uncertainty_weight"],
-                         attention["adaptive_extra"], attention.get("temperature", 0.5)).to(device)
+    model = build_model(config).to(device)
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     model.load_state_dict(checkpoint["model"])
     calibration_logits, calibration_targets = collect_logits(model, calibration_loader, device)
