@@ -107,6 +107,26 @@ PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
 7. Dopiero po walidacji metody wdrożyć strukturalne wykonanie/pruning i
    raportować realną latencję.
 
+## Ustalony kierunek po obecnym treningu (2026-08-02)
+
+Nie zmieniamy obecnego, zamrożonego protokołu w trakcie jego wykonania.
+Po zakończeniu pary global UCLA vs global utility-only na CIFAR-100:
+
+1. Pierwszym nowoczesnym backbone'em będzie **ConvNeXt V2-Tiny**. Jest to
+   kontrolowane rozszerzenie CNN: globalny budżet nadal może alokować grupy
+   kanałów/bloków między etapami. Cel: sprawdzić, czy mechanizm generalizuje
+   poza ResNet-50, przy tym samym rygorze kontroli i kosztu.
+2. **MambaVision lub VMamba** traktujemy jako drugi, eksploracyjny kierunek.
+   Hipoteza: globalny, uncertainty-aware budżet może przydzielać zasoby między
+   bloki state-space. Jest to bardziej nowe, ale wymaga osobnego projektu
+   mechanizmu i uczciwego pomiaru rzeczywistego kosztu, więc nie mieszamy go z
+   podstawową walidacją CNN.
+
+Potencjalny wkład pracy to nie samo użycie nowszego backbone'u, lecz
+`uncertainty-calibrated global compute budgeting for efficient visual
+backbones`: dokładny globalny budżet, alokacja zależna od obrazu, kontrola
+utility-only/static oraz późniejsze strukturalne wykonanie i pomiar latency.
+
 ## Wyniki, których nie należy nadinterpretować
 
 Wcześniejszy lokalny UCLA na CIFAR-100 w trzech seedach nie pokonał static i
