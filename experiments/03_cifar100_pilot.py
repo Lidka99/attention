@@ -72,6 +72,7 @@ def main():
         output = Path(args.output_dir)
         if ctx.is_main: output.mkdir(parents=True, exist_ok=True)
         history = []
+        best_validation_accuracy = float("-inf")
         for epoch in range(schedule.total_epochs):
             state = schedule.state_for_epoch(epoch); apply_curriculum(model, criterion, state)
             phase_lrs = t.get("learning_rates", {})
@@ -85,7 +86,14 @@ def main():
                 history.append({"epoch": epoch + 1, "phase": state.to_dict(), "learning_rate": learning_rate,
                                 "train": train_metrics.__dict__, "validation": test_metrics.__dict__})
                 (output / "history.json").write_text(json.dumps(history, indent=2) + "\n")
-                torch.save({"model": (model.module if ctx.enabled else model).state_dict(), "config": config}, output / "latest.pt")
+                checkpoint = {"epoch": epoch + 1,
+                              "validation_accuracy": test_metrics.accuracy,
+                              "model": (model.module if ctx.enabled else model).state_dict(),
+                              "config": config}
+                torch.save(checkpoint, output / "latest.pt")
+                if test_metrics.accuracy > best_validation_accuracy:
+                    best_validation_accuracy = test_metrics.accuracy
+                    torch.save(checkpoint, output / "best.pt")
                 print(f"epoch={epoch + 1} val_top1={test_metrics.accuracy:.4f} keep={test_metrics.mean_keep_ratio:.4f}")
     finally:
         cleanup_distributed(ctx)

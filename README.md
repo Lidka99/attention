@@ -67,7 +67,8 @@ PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
   --output-dir results/imagenet100/seed42/static
 ```
 
-Każdy run tworzy `history.json`, checkpoint `latest.pt` i manifest klas. Po
+Każdy run tworzy `history.json`, checkpoint końcowy `latest.pt`, checkpoint
+najlepszej walidacji `best.pt` i manifest klas. Po
 każdej epoce sprawdź `val_top1`, `keep` oraz fazę w `history.json`. Oczekiwane
 fazy to pięć epok `warmup`, 20 `sparsification`, a następnie 10 `fine_tune`.
 
@@ -109,7 +110,11 @@ PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
 
 Po runie otwórz `history.json` w katalogu wyniku. Końcowe metryki znajdują się
 w ostatnim wpisie `validation`: `accuracy` to Top-1, a `mean_keep_ratio` to
-średni odsetek zachowanych grup kanałów. `latest.pt` zawiera checkpoint modelu.
+średni odsetek zachowanych grup kanałów. `latest.pt` zawiera checkpoint po
+ustalonej liczbie epok, a `best.pt` checkpoint najwyższej walidacji wraz z
+numerem epoki. W zamrożonym protokole publikacyjnym porównujemy `latest.pt`;
+`best.pt` służy wyłącznie do diagnostyki, aby nie wybierać modelu na podstawie
+zbioru testowego.
 CIFAR-100 służy do walidacji implementacji; wyników nie należy porównywać
 bezpośrednio z ImageNet ani traktować jako końcowego wyniku badawczego.
 

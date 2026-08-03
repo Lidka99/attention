@@ -57,6 +57,9 @@ optymalizatora, batch size i seedów.
 - ImageNet-100: trzy seedy dopiero po spełnieniu kryterium go/no-go;
 - bez zmian hiperparametrów po rozpoczęciu trzech seedów danego wariantu;
 - kod, YAML, commit, wersje bibliotek i GPU zapisane przy każdym runie.
+- główna metryka każdego runu pochodzi z `latest.pt`, czyli modelu po ustalonej
+  liczbie 200 epok; `best.pt` jest zachowywany wyłącznie diagnostycznie i nie
+  służy do wyboru wyniku na zbiorze testowym.
 
 ### Zamrożony harmonogram CIFAR-100 global attention
 
