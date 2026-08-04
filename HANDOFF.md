@@ -107,6 +107,27 @@ PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
 7. Dopiero po walidacji metody wdrożyć strukturalne wykonanie/pruning i
    raportować realną latencję.
 
+### Komendy po zakończeniu utility-only seed 42
+
+Podstawowy audyt porównuje końcowe checkpointy po 200 epokach (nie `best.pt`):
+
+```bash
+PYTHONPATH=src python experiments/05_cifar100_publication_audit.py \
+  --run global_ucla=configs/cifar100_global_ucla_publication.yaml,results/cifar100/global_publication/seed42/ucla/latest.pt \
+  --run utility_only=configs/cifar100_global_utility_publication.yaml,results/cifar100/global_publication/seed42/utility_only/latest.pt \
+  --reference utility_only \
+  --output results/cifar100/global_publication/seed42/audit.json
+```
+
+Następnie diagnostyka uncertainty dla UCLA:
+
+```bash
+PYTHONPATH=src python experiments/04_cifar100_uncertainty_report.py \
+  --config configs/cifar100_global_ucla_publication.yaml \
+  --checkpoint results/cifar100/global_publication/seed42/ucla/latest.pt \
+  --output-dir results/cifar100/global_publication/seed42/ucla
+```
+
 ## Ustalony kierunek po obecnym treningu (2026-08-02)
 
 Nie zmieniamy obecnego, zamrożonego protokołu w trakcie jego wykonania.

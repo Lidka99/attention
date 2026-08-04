@@ -37,6 +37,8 @@ def main():
     parser.add_argument("--output", default="results/cifar100/publication_audit_seed42.json")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--repeats", type=int, default=1000)
+    parser.add_argument("--reference", default=None,
+                        help="Label referencyjnego runu do sparowanych różnic; domyślnie pierwszy --run.")
     args = parser.parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     _, transform = cifar100_transforms()
@@ -55,9 +57,14 @@ def main():
                                    "per_class_accuracy": {str(k): correct[target == k].mean().item() for k in range(100)},
                                    "parameters": sum(p.numel() for p in model.parameters()),
                                    "latency": benchmark_latency(model, torch.randn(1, 3, 32, 32, device=device))}
-    if "dense" in all_predictions:
-        report["paired_vs_dense"] = {label: paired_accuracy_delta(all_predictions["dense"], pred, targets, args.repeats)
-                                      for label, pred in all_predictions.items() if label != "dense"}
+    reference = args.reference or next(iter(all_predictions))
+    if reference not in all_predictions:
+        raise ValueError(f"Nieznany --reference={reference!r}; dostępne: {', '.join(all_predictions)}")
+    report["paired_reference"] = reference
+    report["paired_accuracy_delta"] = {
+        label: paired_accuracy_delta(all_predictions[reference], pred, targets, args.repeats)
+        for label, pred in all_predictions.items() if label != reference
+    }
     output = Path(args.output); output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
