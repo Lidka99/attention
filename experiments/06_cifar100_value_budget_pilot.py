@@ -26,12 +26,14 @@ def evaluate(model, loader, device):
     return (values[0] / values[1]).item()
 
 
-def counterfactual_targets(model, images, targets, diagnostics, base_loss):
+def counterfactual_targets(model, images, targets):
     """Measure loss after transferring one group away from each eligible stage."""
-    keep = torch.stack([item.keep_count for item in diagnostics], dim=1)
     losses = []
     was_training = model.training; model.eval()
     with torch.no_grad():
+        base_logits, base_diagnostics = model(images)
+        base_loss = F.cross_entropy(base_logits, targets, reduction="none")
+        keep = torch.stack([item.keep_count for item in base_diagnostics], dim=1)
         for stage in range(4):
             override = keep.clone()
             eligible = override[:, stage] > 1
@@ -68,23 +70,27 @@ def main():
         history = []; raw = model.module if ctx.enabled else model
         for epoch in range(t["epochs"]):
             if hasattr(train.sampler, "set_epoch"): train.sampler.set_epoch(epoch)
-            model.train(); total = correct = value_total = batches = 0
+            model.train(); total = correct = value_total = value_batches = batches = 0
+            keep_total = torch.zeros(4, device=ctx.device)
             for batch_index, (images, targets) in enumerate(train):
                 images, targets = images.to(ctx.device), targets.to(ctx.device)
                 optimizer.zero_grad(set_to_none=True); logits, diagnostics = model(images)
                 classification = F.cross_entropy(logits, targets); value = logits.new_zeros(())
                 if batch_index % t["counterfactual_every"] == 0:
-                    target = counterfactual_targets(raw, images, targets, diagnostics,
-                                                    F.cross_entropy(logits, targets, reduction="none"))
+                    target = counterfactual_targets(raw, images, targets)
                     values = torch.stack([item.uncertainty for item in diagnostics], dim=1)
                     value = stage_value_loss(values, target)
+                    value_batches += 1
                 (classification + t["value_weight"] * value).backward(); optimizer.step()
                 total += targets.numel(); correct += logits.argmax(1).eq(targets).sum().item()
                 value_total += value.detach().item(); batches += 1
+                keep_total += torch.stack([item.keep_count.float().mean() for item in diagnostics])
             validation_accuracy = evaluate(raw, validation, ctx.device)
             if ctx.is_main:
                 record = {"epoch": epoch + 1, "train_accuracy": correct / total,
-                          "value_loss": value_total / batches, "validation_accuracy": validation_accuracy}
+                          "value_loss": value_total / max(1, value_batches),
+                          "mean_keep_per_stage": (keep_total / batches).tolist(),
+                          "validation_accuracy": validation_accuracy}
                 history.append(record); (output / "history.json").write_text(json.dumps(history, indent=2) + "\n")
                 torch.save({"epoch": epoch + 1, "model": raw.state_dict(), "config": config}, output / "latest.pt")
                 print(json.dumps(record))
