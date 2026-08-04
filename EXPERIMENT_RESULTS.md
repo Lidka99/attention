@@ -91,3 +91,38 @@ Raport zapisany w `results/cifar100/seed42/ucla_matched_0625/analysis/`:
 Uncertainty jest tylko minimalnie wyższa dla błędów niż dla trafień. W obecnej
 wersji kontroler słabo rozróżnia ryzykowne decyzje; przed kolejnym tuningiem
 trzeba przeanalizować funkcję celu i sposób definiowania targetu błędu.
+
+## Zamrożony protokół global attention — CIFAR-100, seed 42 (200 epok)
+
+To jest osobny, pełny protokół: 20 epok warm-up, 120 sparsification i 60
+fine-tuningu, 4 GPU DDP, globalnie dokładnie 40 z 64 grup (62,5%) dla każdego
+obrazu. Wyniki dotyczą checkpointów końcowych (`latest.pt`) po z góry
+ustalonych 200 epokach, nie checkpointów wybranych po najlepszym wyniku testu.
+
+| Wariant | Top-1 | Bootstrap 95% CI | Keep-ratio |
+|---|---:|---:|---:|
+| global UCLA | 69,82% | [68,95%; 70,70%] | 62,50% |
+| global utility-only | **71,58%** | [70,66%; 72,50%] | 62,50% |
+
+Sparowana różnica `global UCLA − utility-only` wynosi **−1,76 pp**, z 95% CI
+**[−2,58; −0,93] pp**. Utility-only ma poprawną predykcję tam, gdzie UCLA jej
+nie ma, dla 1006 obrazów; odwrotna sytuacja występuje dla 830 obrazów.
+
+### Diagnostyka niepewności global UCLA
+
+| Metryka | Wynik |
+|---|---:|
+| Top-1 / Top-5 | 69,82% / 90,22% |
+| NLL / ECE | 2,4737 / 22,50% |
+| Brier wieloklasowy | 0,5075 |
+| Korelacja Pearsona uncertainty–błąd | **0,054** |
+| Średnia uncertainty: trafienia / błędy | 0,00260 / 0,00280 |
+
+### Decyzja go/no-go
+
+**Nie przechodzi.** UCLA jest gorszy od utility-only o więcej niż dozwolone
+0,5 pp, a korelacja uncertainty–błąd (0,054) jest znacznie poniżej progu 0,25.
+Nie uruchamiać seedów 123/2026 ani Tiny ImageNet dla tej wersji mechanizmu.
+Następny eksperyment musi najpierw przeprojektować uczenie i kalibrację
+uncertainty, po czym przejść krótki pilot na CIFAR-100 przed ponownym pełnym
+protokołem.

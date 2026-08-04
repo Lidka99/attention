@@ -87,8 +87,16 @@ zakończył (`nvidia-smi` i ostatnia epoka w `history.json`).
 
 ## Kolejność dalszych prac
 
-1. Dokończyć global UCLA seed 42 i zapisać wynik.
-2. Uruchomić global utility-only seed 42:
+1. Zakończono global UCLA i global utility-only dla seeda 42. Audyt zapisano w
+   `results/cifar100/global_publication/seed42/audit.json`.
+2. **Wynik go/no-go: nie przechodzi.** UCLA: 69,82%, utility-only: 71,58%;
+   sparowana różnica UCLA − utility-only: −1,76 pp, 95% CI [−2,58; −0,93].
+   Korelacja uncertainty–błąd UCLA: 0,054 (wymagane co najmniej 0,25).
+3. Nie uruchamiać seedów 123/2026 ani Tiny ImageNet dla obecnego global UCLA.
+   Zamiast tego przeprojektować target/kalibrację uncertainty i wykonać krótki
+   pilot CIFAR-100, zanim ponownie zamrozimy pełny protokół.
+4. Global utility-only seed 42 został uruchomiony następująco (komenda dla
+   historii/reprodukcji):
 
 ```bash
 PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
@@ -97,15 +105,8 @@ PYTHONPATH=src torchrun --standalone --nproc_per_node=4 \
   --output-dir results/cifar100/global_publication/seed42/utility_only
 ```
 
-3. Uruchomić `experiments/05_cifar100_publication_audit.py` na obu checkpointach
-   oraz sprawdzić Top-1, CI, ECE/NLL/Brier i uncertainty–błąd.
-4. Tylko jeśli UCLA spełnia kryterium go/no-go z `PUBLICATION_PROTOCOL.md`,
-   powtórzyć oba warianty dla seedów 123 i 2026.
-5. Dodać globalne konfiguracje/pilot Tiny ImageNet; adapter jest gotowy w
-   `src/attentionv3/data/tinyimagenet.py`.
-6. Dodać CIFAR-100-C jako ewaluację corruption bez ponownego treningu.
-7. Dopiero po walidacji metody wdrożyć strukturalne wykonanie/pruning i
-   raportować realną latencję.
+5. Po udanym nowym pilocie: ponownie zamrozić protokół, wykonać trzy seedy na
+   CIFAR-100, potem Tiny ImageNet, CIFAR-100-C i strukturalne wykonanie.
 
 ### Komendy po zakończeniu utility-only seed 42
 
