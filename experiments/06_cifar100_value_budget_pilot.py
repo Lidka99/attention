@@ -36,11 +36,16 @@ def counterfactual_targets(model, images, targets):
         keep = torch.stack([item.keep_count for item in base_diagnostics], dim=1)
         for stage in range(4):
             override = keep.clone()
-            eligible = override[:, stage] > 1
-            receiver = override.argmin(dim=1)
-            for row in torch.where(eligible)[0].tolist():
-                target = int(receiver[row])
-                if target == stage: target = (stage + 1) % 4
+            for row in range(override.shape[0]):
+                # A valid ablation preserves the configured floor, group cap,
+                # and exact global total; otherwise retain the base allocation.
+                if override[row, stage] <= model.min_groups_per_stage:
+                    continue
+                candidates = [index for index in range(4)
+                              if index != stage and override[row, index] < model.groups]
+                if not candidates:
+                    continue
+                target = min(candidates, key=lambda index: int(override[row, index]))
                 override[row, stage] -= 1; override[row, target] += 1
             logits, _ = model(images, override)
             losses.append(F.cross_entropy(logits, targets, reduction="none"))

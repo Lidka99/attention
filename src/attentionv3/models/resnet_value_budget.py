@@ -38,7 +38,7 @@ class GlobalValueBudgetResNet50(nn.Module):
         if override is not None:
             if override.shape != (batch, 4) or override.dtype not in (torch.int32, torch.int64):
                 raise ValueError("stage_keep_override must be integer [batch, 4]")
-            if (override < 1).any() or (override > self.groups).any() or not torch.all(override.sum(1) == self.total_keep):
+            if (override < self.min_groups_per_stage).any() or (override > self.groups).any() or not torch.all(override.sum(1) == self.total_keep):
                 raise ValueError("override must respect per-stage limits and exact total budget")
             return override
         keep = torch.full((batch, 4), self.min_groups_per_stage, dtype=torch.long, device=stage_values.device)
