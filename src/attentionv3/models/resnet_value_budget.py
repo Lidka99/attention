@@ -1,0 +1,66 @@
+"""ResNet-50 with a stage-wise value-of-compute policy and exact global budget."""
+
+import torch
+from torch import Tensor, nn
+from torchvision.models import ResNet, resnet50
+
+from attentionv3.budget_controller import BudgetOutput
+
+
+class GlobalValueBudgetResNet50(nn.Module):
+    """Allocate channel groups to stages using learned marginal-compute value.
+
+    ``stage_values`` are logits learned from counterfactual ablation targets.
+    They are deliberately separate from the legacy uncertainty head.
+    """
+
+    stage_channels = (256, 512, 1024, 2048)
+
+    def __init__(self, num_classes: int = 1000, groups: int = 16, hidden: int = 64,
+                 budget: float = 0.625, backbone: ResNet | None = None) -> None:
+        super().__init__()
+        if not 0 < budget <= 1:
+            raise ValueError("budget must be in (0, 1]")
+        self.groups = groups
+        self.total_keep = max(4, round(4 * groups * budget))
+        self.backbone = backbone if backbone is not None else resnet50(weights=None)
+        self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
+        self.policy = nn.Sequential(nn.Linear(64, hidden), nn.ReLU(inplace=True),
+                                    nn.Linear(hidden, 4 * groups + 4))
+
+    def _keep_counts(self, stage_values: Tensor, override: Tensor | None) -> Tensor:
+        batch = stage_values.shape[0]
+        if override is not None:
+            if override.shape != (batch, 4) or override.dtype not in (torch.int32, torch.int64):
+                raise ValueError("stage_keep_override must be integer [batch, 4]")
+            if (override < 1).any() or (override > self.groups).any() or not torch.all(override.sum(1) == self.total_keep):
+                raise ValueError("override must respect per-stage limits and exact total budget")
+            return override
+        keep = torch.ones(batch, 4, dtype=torch.long, device=stage_values.device)
+        for row in range(batch):
+            for _ in range(self.total_keep - 4):
+                eligible = keep[row] < self.groups
+                chosen = stage_values[row].masked_fill(~eligible, float("-inf")).argmax()
+                keep[row, chosen] += 1
+        return keep
+
+    def forward(self, x: Tensor, stage_keep_override: Tensor | None = None):
+        x = self.backbone.conv1(x); x = self.backbone.bn1(x); x = self.backbone.relu(x); x = self.backbone.maxpool(x)
+        policy = self.policy(x.mean(dim=(2, 3)))
+        utility, stage_values = policy[:, :4 * self.groups].reshape(x.shape[0], 4, self.groups), policy[:, 4 * self.groups:]
+        keep = self._keep_counts(stage_values, stage_keep_override)
+        diagnostics = []
+        for index, stage in enumerate((self.backbone.layer1, self.backbone.layer2, self.backbone.layer3, self.backbone.layer4)):
+            x = stage(x)
+            values, selected = utility[:, index].topk(self.groups, dim=1)
+            gate = torch.zeros_like(utility[:, index])
+            for row in range(x.shape[0]):
+                gate[row, selected[row, :keep[row, index]]] = 1.0
+            if self.training:
+                threshold = values.gather(1, (keep[:, index] - 1).unsqueeze(1))
+                soft = torch.sigmoid((utility[:, index] - threshold) / 0.5)
+                gate = gate + soft - soft.detach()
+            channel_gate = gate.repeat_interleave(x.shape[1] // self.groups, dim=1)
+            x = x * channel_gate[:, :, None, None]
+            diagnostics.append(BudgetOutput(gate, utility[:, index], keep[:, index], stage_values[:, index]))
+        return self.backbone.fc(torch.flatten(self.backbone.avgpool(x), 1)), diagnostics

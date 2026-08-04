@@ -2,10 +2,22 @@ import unittest
 
 import torch
 
-from attentionv3.models import GlobalUCLAResNet50, UCLAResNet50
+from attentionv3.models import GlobalUCLAResNet50, GlobalValueBudgetResNet50, UCLAResNet50
 
 
 class UCLAResNetTests(unittest.TestCase):
+
+    def test_value_budget_resnet_keeps_exact_budget_and_accepts_counterfactual_override(self):
+        model = GlobalValueBudgetResNet50(num_classes=10, groups=4, hidden=8, budget=0.625)
+        model.backbone.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        model.backbone.maxpool = torch.nn.Identity()
+        images = torch.randn(2, 3, 32, 32)
+        logits, diagnostics = model(images)
+        self.assertEqual(tuple(logits.shape), (2, 10))
+        self.assertTrue(torch.all(torch.stack([item.keep_count for item in diagnostics]).sum(0) == 10))
+        override = torch.tensor([[4, 3, 2, 1], [1, 2, 3, 4]])
+        _, overridden = model(images, override)
+        self.assertTrue(torch.equal(torch.stack([item.keep_count for item in overridden]).T, override))
     def test_resnet50_returns_logits_and_stage_diagnostics(self):
         model = UCLAResNet50(num_classes=7, groups=16, hidden=8)
         model.eval()
