@@ -17,12 +17,17 @@ class GlobalValueBudgetResNet50(nn.Module):
     stage_channels = (256, 512, 1024, 2048)
 
     def __init__(self, num_classes: int = 1000, groups: int = 16, hidden: int = 64,
-                 budget: float = 0.625, backbone: ResNet | None = None) -> None:
+                 budget: float = 0.625, min_groups_per_stage: int = 1,
+                 backbone: ResNet | None = None) -> None:
         super().__init__()
         if not 0 < budget <= 1:
             raise ValueError("budget must be in (0, 1]")
-        self.groups = groups
+        if not 1 <= min_groups_per_stage <= groups:
+            raise ValueError("min_groups_per_stage must be between one and groups")
+        self.groups, self.min_groups_per_stage = groups, min_groups_per_stage
         self.total_keep = max(4, round(4 * groups * budget))
+        if self.total_keep < 4 * min_groups_per_stage:
+            raise ValueError("budget cannot satisfy min_groups_per_stage")
         self.backbone = backbone if backbone is not None else resnet50(weights=None)
         self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
         self.policy = nn.Sequential(nn.Linear(64, hidden), nn.ReLU(inplace=True),
@@ -36,9 +41,9 @@ class GlobalValueBudgetResNet50(nn.Module):
             if (override < 1).any() or (override > self.groups).any() or not torch.all(override.sum(1) == self.total_keep):
                 raise ValueError("override must respect per-stage limits and exact total budget")
             return override
-        keep = torch.ones(batch, 4, dtype=torch.long, device=stage_values.device)
+        keep = torch.full((batch, 4), self.min_groups_per_stage, dtype=torch.long, device=stage_values.device)
         for row in range(batch):
-            for _ in range(self.total_keep - 4):
+            for _ in range(self.total_keep - 4 * self.min_groups_per_stage):
                 eligible = keep[row] < self.groups
                 chosen = stage_values[row].masked_fill(~eligible, float("-inf")).argmax()
                 keep[row, chosen] += 1

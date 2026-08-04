@@ -10,6 +10,7 @@ attention:
   groups_per_stage: 16
   hidden: 64
   budget: 0.625
+  min_groups_per_stage: 4
 training:
   epochs: 20
   learning_rate: 0.001

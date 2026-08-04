@@ -18,6 +18,15 @@ class UCLAResNetTests(unittest.TestCase):
         override = torch.tensor([[4, 3, 2, 1], [1, 2, 3, 4]])
         _, overridden = model(images, override)
         self.assertTrue(torch.equal(torch.stack([item.keep_count for item in overridden]).T, override))
+
+    def test_value_budget_resnet_can_enforce_stage_floor(self):
+        model = GlobalValueBudgetResNet50(num_classes=10, groups=4, hidden=8, budget=0.75, min_groups_per_stage=2)
+        model.backbone.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        model.backbone.maxpool = torch.nn.Identity()
+        _, diagnostics = model(torch.randn(1, 3, 32, 32))
+        kept = torch.stack([item.keep_count for item in diagnostics]).squeeze(1)
+        self.assertTrue(torch.all(kept >= 2))
+        self.assertEqual(kept.sum().item(), 12)
     def test_resnet50_returns_logits_and_stage_diagnostics(self):
         model = UCLAResNet50(num_classes=7, groups=16, hidden=8)
         model.eval()
