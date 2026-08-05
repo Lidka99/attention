@@ -18,13 +18,16 @@ class GlobalValueBudgetResNet50(nn.Module):
 
     def __init__(self, num_classes: int = 1000, groups: int = 16, hidden: int = 64,
                  budget: float = 0.625, min_groups_per_stage: int = 1,
-                 backbone: ResNet | None = None) -> None:
+                 allocation: str = "value", backbone: ResNet | None = None) -> None:
         super().__init__()
         if not 0 < budget <= 1:
             raise ValueError("budget must be in (0, 1]")
         if not 1 <= min_groups_per_stage <= groups:
             raise ValueError("min_groups_per_stage must be between one and groups")
+        if allocation not in {"value", "utility"}:
+            raise ValueError("allocation must be value or utility")
         self.groups, self.min_groups_per_stage = groups, min_groups_per_stage
+        self.allocation = allocation
         self.total_keep = max(4, round(4 * groups * budget))
         if self.total_keep < 4 * min_groups_per_stage:
             raise ValueError("budget cannot satisfy min_groups_per_stage")
@@ -53,7 +56,8 @@ class GlobalValueBudgetResNet50(nn.Module):
         x = self.backbone.conv1(x); x = self.backbone.bn1(x); x = self.backbone.relu(x); x = self.backbone.maxpool(x)
         policy = self.policy(x.mean(dim=(2, 3)))
         utility, stage_values = policy[:, :4 * self.groups].reshape(x.shape[0], 4, self.groups), policy[:, 4 * self.groups:]
-        keep = self._keep_counts(stage_values, stage_keep_override)
+        allocation_score = stage_values if self.allocation == "value" else utility.mean(dim=2)
+        keep = self._keep_counts(allocation_score, stage_keep_override)
         diagnostics = []
         for index, stage in enumerate((self.backbone.layer1, self.backbone.layer2, self.backbone.layer3, self.backbone.layer4)):
             x = stage(x)

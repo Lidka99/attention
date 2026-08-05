@@ -66,7 +66,7 @@ def main():
             config["split_seed"], ctx.enabled, ctx.rank, ctx.world_size)
         a, t = config["attention"], config["training"]
         model = GlobalValueBudgetResNet50(config["num_classes"], a["groups_per_stage"], a["hidden"], a["budget"],
-                                          a.get("min_groups_per_stage", 1))
+                                          a.get("min_groups_per_stage", 1), a.get("allocation", "value"))
         model.backbone.conv1 = torch.nn.Conv2d(3, 64, 3, 1, 1, bias=False); model.backbone.maxpool = torch.nn.Identity()
         model = model.to(ctx.device)
         if ctx.enabled: model = DistributedDataParallel(model, device_ids=[ctx.local_rank], find_unused_parameters=True)
@@ -82,7 +82,7 @@ def main():
                 images, targets = images.to(ctx.device), targets.to(ctx.device)
                 optimizer.zero_grad(set_to_none=True); logits, diagnostics = model(images)
                 classification = F.cross_entropy(logits, targets); value = logits.new_zeros(())
-                if batch_index % t["counterfactual_every"] == 0:
+                if a.get("allocation", "value") == "value" and batch_index % t["counterfactual_every"] == 0:
                     target = counterfactual_targets(raw, images, targets)
                     values = torch.stack([item.uncertainty for item in diagnostics], dim=1)
                     value = stage_value_loss(values, target)
