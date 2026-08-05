@@ -17,5 +17,7 @@ training:
   weight_decay: 0.0001
   value_weight: 0.2
   counterfactual_every: 16
+  ablation_groups: 4
+  evaluate_test: false
 distributed:
   world_size: 4

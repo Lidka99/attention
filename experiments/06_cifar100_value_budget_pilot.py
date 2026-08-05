@@ -26,7 +26,7 @@ def evaluate(model, loader, device):
     return (values[0] / values[1]).item()
 
 
-def counterfactual_targets(model, images, targets):
+def counterfactual_targets(model, images, targets, groups_to_transfer):
     """Measure loss after transferring one group away from each eligible stage."""
     losses = []
     was_training = model.training; model.eval()
@@ -46,11 +46,14 @@ def counterfactual_targets(model, images, targets):
                 if not candidates:
                     continue
                 target = min(candidates, key=lambda index: int(override[row, index]))
-                override[row, stage] -= 1; override[row, target] += 1
+                transferable = min(groups_to_transfer, int(override[row, stage] - model.min_groups_per_stage),
+                                   int(model.groups - override[row, target]))
+                override[row, stage] -= transferable; override[row, target] += transferable
             logits, _ = model(images, override)
             losses.append(F.cross_entropy(logits, targets, reduction="none"))
     model.train(was_training)
-    return counterfactual_stage_value_targets(base_loss.detach(), torch.stack(losses, dim=1))
+    ablated = torch.stack(losses, dim=1)
+    return counterfactual_stage_value_targets(base_loss.detach(), ablated)
 
 
 def main():
@@ -76,17 +79,19 @@ def main():
         history = []; raw = model.module if ctx.enabled else model
         for epoch in range(t["epochs"]):
             if hasattr(train.sampler, "set_epoch"): train.sampler.set_epoch(epoch)
-            model.train(); total = correct = value_total = value_batches = batches = 0
+            model.train(); total = correct = value_total = value_batches = batches = agreement = entropy_total = 0
             keep_total = torch.zeros(4, device=ctx.device)
             for batch_index, (images, targets) in enumerate(train):
                 images, targets = images.to(ctx.device), targets.to(ctx.device)
                 optimizer.zero_grad(set_to_none=True); logits, diagnostics = model(images)
                 classification = F.cross_entropy(logits, targets); value = logits.new_zeros(())
                 if a.get("allocation", "value") == "value" and batch_index % t["counterfactual_every"] == 0:
-                    target = counterfactual_targets(raw, images, targets)
+                    target = counterfactual_targets(raw, images, targets, t["ablation_groups"])
                     values = torch.stack([item.uncertainty for item in diagnostics], dim=1)
                     value = stage_value_loss(values, target)
                     value_batches += 1
+                    agreement += values.argmax(1).eq(target.argmax(1)).float().sum().item()
+                    entropy_total += (-(target * target.clamp_min(1e-8).log()).sum(1)).sum().item()
                 (classification + t["value_weight"] * value).backward(); optimizer.step()
                 total += targets.numel(); correct += logits.argmax(1).eq(targets).sum().item()
                 value_total += value.detach().item(); batches += 1
@@ -95,13 +100,15 @@ def main():
             if ctx.is_main:
                 record = {"epoch": epoch + 1, "train_accuracy": correct / total,
                           "value_loss": value_total / max(1, value_batches),
+                          "target_entropy": entropy_total / max(1, value_batches * config["batch_size"] * ctx.world_size),
+                          "value_top1_agreement": agreement / max(1, value_batches * config["batch_size"] * ctx.world_size),
                           "mean_keep_per_stage": (keep_total / batches).tolist(),
                           "validation_accuracy": validation_accuracy}
                 history.append(record); (output / "history.json").write_text(json.dumps(history, indent=2) + "\n")
                 torch.save({"epoch": epoch + 1, "model": raw.state_dict(), "config": config}, output / "latest.pt")
                 print(json.dumps(record))
-        test_accuracy = evaluate(raw, test, ctx.device)
-        if ctx.is_main:
+        test_accuracy = evaluate(raw, test, ctx.device) if t.get("evaluate_test", True) else None
+        if ctx.is_main and test_accuracy is not None:
             (output / "final.json").write_text(json.dumps({"test_accuracy": test_accuracy}, indent=2) + "\n")
     finally:
         cleanup_distributed(ctx)
