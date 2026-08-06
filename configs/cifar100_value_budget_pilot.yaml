@@ -11,6 +11,8 @@ attention:
   hidden: 64
   budget: 0.625
   min_groups_per_stage: 4
+  allocation: value
+  quota_temperature: 1.5
 training:
   epochs: 20
   learning_rate: 0.001

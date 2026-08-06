@@ -18,7 +18,8 @@ class GlobalValueBudgetResNet50(nn.Module):
 
     def __init__(self, num_classes: int = 1000, groups: int = 16, hidden: int = 64,
                  budget: float = 0.625, min_groups_per_stage: int = 1,
-                 allocation: str = "value", backbone: ResNet | None = None) -> None:
+                 allocation: str = "value", quota_temperature: float = 1.0,
+                 backbone: ResNet | None = None) -> None:
         super().__init__()
         if not 0 < budget <= 1:
             raise ValueError("budget must be in (0, 1]")
@@ -26,8 +27,11 @@ class GlobalValueBudgetResNet50(nn.Module):
             raise ValueError("min_groups_per_stage must be between one and groups")
         if allocation not in {"value", "utility"}:
             raise ValueError("allocation must be value or utility")
+        if quota_temperature <= 0:
+            raise ValueError("quota_temperature must be positive")
         self.groups, self.min_groups_per_stage = groups, min_groups_per_stage
         self.allocation = allocation
+        self.quota_temperature = quota_temperature
         self.total_keep = max(4, round(4 * groups * budget))
         if self.total_keep < 4 * min_groups_per_stage:
             raise ValueError("budget cannot satisfy min_groups_per_stage")
@@ -46,10 +50,14 @@ class GlobalValueBudgetResNet50(nn.Module):
             return override
         keep = torch.full((batch, 4), self.min_groups_per_stage, dtype=torch.long, device=stage_values.device)
         for row in range(batch):
-            for _ in range(self.total_keep - 4 * self.min_groups_per_stage):
+            available = self.total_keep - 4 * self.min_groups_per_stage
+            quota = torch.softmax(stage_values[row] / self.quota_temperature, dim=0) * available
+            extra = quota.floor().long().clamp(max=self.groups - self.min_groups_per_stage)
+            keep[row] += extra
+            for _ in range(self.total_keep - int(keep[row].sum())):
                 eligible = keep[row] < self.groups
-                chosen = stage_values[row].masked_fill(~eligible, float("-inf")).argmax()
-                keep[row, chosen] += 1
+                remainder = (quota - extra).masked_fill(~eligible, float("-inf"))
+                chosen = remainder.argmax(); keep[row, chosen] += 1
         return keep
 
     def forward(self, x: Tensor, stage_keep_override: Tensor | None = None):

@@ -69,7 +69,7 @@ def main():
             config["split_seed"], ctx.enabled, ctx.rank, ctx.world_size)
         a, t = config["attention"], config["training"]
         model = GlobalValueBudgetResNet50(config["num_classes"], a["groups_per_stage"], a["hidden"], a["budget"],
-                                          a.get("min_groups_per_stage", 1), a.get("allocation", "value"))
+                                          a.get("min_groups_per_stage", 1), a.get("allocation", "value"), a.get("quota_temperature", 1.0))
         model.backbone.conv1 = torch.nn.Conv2d(3, 64, 3, 1, 1, bias=False); model.backbone.maxpool = torch.nn.Identity()
         model = model.to(ctx.device)
         if ctx.enabled: model = DistributedDataParallel(model, device_ids=[ctx.local_rank], find_unused_parameters=True)
