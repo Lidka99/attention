@@ -73,7 +73,13 @@ def main():
         model.backbone.conv1 = torch.nn.Conv2d(3, 64, 3, 1, 1, bias=False); model.backbone.maxpool = torch.nn.Identity()
         model = model.to(ctx.device)
         if ctx.enabled: model = DistributedDataParallel(model, device_ids=[ctx.local_rank], find_unused_parameters=True)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=t["learning_rate"], weight_decay=t["weight_decay"])
+        if t.get("optimizer", "adamw") == "muon_hybrid":
+            muon_params = [p for p in model.parameters() if p.requires_grad and p.ndim == 2]
+            adamw_params = [p for p in model.parameters() if p.requires_grad and p.ndim != 2]
+            optimizers = [torch.optim.Muon(muon_params, lr=t["learning_rate"], weight_decay=t["weight_decay"]),
+                          torch.optim.AdamW(adamw_params, lr=t["learning_rate"], weight_decay=t["weight_decay"])]
+        else:
+            optimizers = [torch.optim.AdamW(model.parameters(), lr=t["learning_rate"], weight_decay=t["weight_decay"])]
         output = Path(args.output_dir)
         if ctx.is_main: output.mkdir(parents=True, exist_ok=True)
         history = []; raw = model.module if ctx.enabled else model
@@ -83,7 +89,7 @@ def main():
             keep_total = torch.zeros(4, device=ctx.device)
             for batch_index, (images, targets) in enumerate(train):
                 images, targets = images.to(ctx.device), targets.to(ctx.device)
-                optimizer.zero_grad(set_to_none=True); logits, diagnostics = model(images)
+                [optimizer.zero_grad(set_to_none=True) for optimizer in optimizers]; logits, diagnostics = model(images)
                 classification = F.cross_entropy(logits, targets); value = logits.new_zeros(())
                 if a.get("allocation", "value") == "value" and batch_index % t["counterfactual_every"] == 0:
                     target = counterfactual_targets(raw, images, targets, t["ablation_groups"])
@@ -92,7 +98,7 @@ def main():
                     value_batches += 1
                     agreement += values.argmax(1).eq(target.argmax(1)).float().sum().item()
                     entropy_total += (-(target * target.clamp_min(1e-8).log()).sum(1)).sum().item()
-                (classification + t["value_weight"] * value).backward(); optimizer.step()
+                (classification + t["value_weight"] * value).backward(); [optimizer.step() for optimizer in optimizers]
                 total += targets.numel(); correct += logits.argmax(1).eq(targets).sum().item()
                 value_total += value.detach().item(); batches += 1
                 keep_total += torch.stack([item.keep_count.float().mean() for item in diagnostics])
