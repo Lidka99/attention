@@ -9,7 +9,7 @@ import yaml
 from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel
 
-from attentionv3.data import build_cifar100_train_validation_test_loaders
+from attentionv3.data import build_cifar100_train_validation_test_loaders, build_tinyimagenet_loaders
 from attentionv3.models import GlobalValueBudgetResNet50
 from attentionv3.training import (cleanup_distributed, counterfactual_stage_value_targets,
                                   initialize_distributed, stage_value_loss)
@@ -64,9 +64,14 @@ def main():
     ctx = initialize_distributed("auto", config["distributed"]["world_size"])
     try:
         torch.manual_seed(config["seed"] + ctx.rank)
-        train, validation, test = build_cifar100_train_validation_test_loaders(
-            config["data_dir"], config["batch_size"], config["workers"], config["validation_size"],
-            config["split_seed"], ctx.enabled, ctx.rank, ctx.world_size)
+        if config.get("dataset") == "tinyimagenet":
+            train, validation = build_tinyimagenet_loaders(config["data_dir"], config["batch_size"], config["workers"],
+                                                            ctx.enabled, ctx.rank, ctx.world_size)
+            test = None
+        else:
+            train, validation, test = build_cifar100_train_validation_test_loaders(
+                config["data_dir"], config["batch_size"], config["workers"], config["validation_size"],
+                config["split_seed"], ctx.enabled, ctx.rank, ctx.world_size)
         a, t = config["attention"], config["training"]
         model = GlobalValueBudgetResNet50(config["num_classes"], a["groups_per_stage"], a["hidden"], a["budget"],
                                           a.get("min_groups_per_stage", 1), a.get("allocation", "value"), a.get("quota_temperature", 1.0))
@@ -113,7 +118,7 @@ def main():
                 history.append(record); (output / "history.json").write_text(json.dumps(history, indent=2) + "\n")
                 torch.save({"epoch": epoch + 1, "model": raw.state_dict(), "config": config}, output / "latest.pt")
                 print(json.dumps(record))
-        test_accuracy = evaluate(raw, test, ctx.device) if t.get("evaluate_test", True) else None
+        test_accuracy = evaluate(raw, test, ctx.device) if t.get("evaluate_test", True) and test is not None else None
         if ctx.is_main and test_accuracy is not None:
             (output / "final.json").write_text(json.dumps({"test_accuracy": test_accuracy}, indent=2) + "\n")
     finally:
