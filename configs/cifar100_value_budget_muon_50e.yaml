@@ -1,0 +1,26 @@
+dataset: cifar100
+data_dir: /home/users/s224574/attention/attention_v2/data
+num_classes: 100
+seed: 42
+batch_size: 128
+workers: 4
+validation_size: 5000
+split_seed: 20260804
+attention:
+  groups_per_stage: 16
+  hidden: 64
+  budget: 0.625
+  min_groups_per_stage: 4
+  allocation: value
+  quota_temperature: 1.5
+training:
+  epochs: 50
+  optimizer: muon_hybrid
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  value_weight: 0.2
+  counterfactual_every: 16
+  ablation_groups: 4
+  evaluate_test: false
+distributed:
+  world_size: 4
