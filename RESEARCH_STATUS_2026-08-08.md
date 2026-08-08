@@ -38,6 +38,11 @@ utility-only na pełnym CIFAR-100 seed 42: 69,82% vs 71,58%. Raport:
 Tiny ImageNet daje pierwszy konkretny powód, aby kontynuować: value-of-compute
 wygrywa z utility-only o 1,85 pp przy identycznym budget i optimizerze.
 
+Replikacja screeningowa seed 123 zakończyła się remisem: 56,78% value i
+56,78% utility-only. Średnia różnica dwóch seedów wynosi +0,93 pp dla value.
+Value nie przegrywa w żadnym seedzie, więc przechodzi do dłuższego protokołu;
+nie jest to jeszcze dowód publikacyjny.
+
 Nie jest to jeszcze wynik publikacyjny, ponieważ mamy tylko jeden seed i 20
 epok. Nie wolno twierdzić, że metoda jest już lepsza ogólnie ani raportować
 realnego speedupu — obecne bramy nie omijają fizycznie konwolucji.
