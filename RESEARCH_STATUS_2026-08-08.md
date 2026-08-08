@@ -52,6 +52,20 @@ realnego speedupu — obecne bramy nie omijają fizycznie konwolucji.
 5. Jeśli seed 123 nie potwierdzi efektu: potraktować Tiny wynik jako hipotezę,
    a nie dowód, i poprawić agreement value–counterfactual.
 
+## Drabina długości eksperymentu
+
+- **20 epok**: screening, debug i szybka replikacja sygnału; nie wynik
+  publikacyjny.
+- **100 epok**: potwierdzenie, że przewaga nie jest wyłącznie szybszą
+  zbieżnością.
+- **200 epok**: zamrożony finał do tabeli, ale dopiero jeśli dwa seedy
+  screeningowe nie obalą dodatniego sygnału.
+
+Docelowa teza pozostaje taka sama: kontrfaktycznie uczona attention ma przy
+tym samym, dokładnym globalnym budżecie kanałów zachować więcej jakości niż
+utility-only. Aktualny dodatni wynik Tiny ImageNet seed 42 jest powodem do
+replikacji, nie końcowym dowodem.
+
 ## Artefakty
 
 - Tiny value: `results/tinyimagenet/value_budget_muon/seed42/`;
