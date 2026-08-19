@@ -47,33 +47,26 @@ Nie jest to jeszcze wynik publikacyjny, ponieważ mamy tylko jeden seed i 20
 epok. Nie wolno twierdzić, że metoda jest już lepsza ogólnie ani raportować
 realnego speedupu — obecne bramy nie omijają fizycznie konwolucji.
 
-## Następne decyzje
 
-1. Zamrozić aktualny soft quota, target, floor i Muon.
-2. Powtórzyć Tiny ImageNet value i utility-only dla seeda 123, 20 epok.
-3. Jeśli dodatnia różnica utrzyma się: uruchomić dłuższy protokół (50 epok)
-   dla obu wariantów i dwóch seedów.
-4. Dopiero potem wykonać końcowy audyt, trzeci seed i ewentualnie ConvNeXt V2.
-5. Jeśli seed 123 nie potwierdzi efektu: potraktować Tiny wynik jako hipotezę,
-   a nie dowód, i poprawić agreement value–counterfactual.
+## Decyzja po pierwszej parze 100-epokowej
 
-## Drabina długości eksperymentu
+Protokół 100 epok dla seeda 42 nie potwierdził przewagi końcowej: value-of-compute osiągnął 58,36% walidacji, a utility-only 58,33% (różnica +0,03 pp). Przewaga +1,85 pp z 20 epok była więc najpewniej efektem dynamiki uczenia, a nie potwierdzonym zyskiem po zbieżności. Pierwszy run utility-only został przerwany po 23 epokach; do porównania używamy pełnego rerunu 100 epok.
 
-- **20 epok**: screening, debug i szybka replikacja sygnału; nie wynik
-  publikacyjny.
-- **100 epok**: potwierdzenie, że przewaga nie jest wyłącznie szybszą
-  zbieżnością.
-- **200 epok**: zamrożony finał do tabeli, ale dopiero jeśli dwa seedy
-  screeningowe nie obalą dodatniego sygnału.
+Następny i jedyny uzasadniony run eskalacyjny to sparowana replikacja 100 epok dla seeda 123, bez dostępu do testu i bez zmiany hiperparametrów:
 
-Docelowa teza pozostaje taka sama: kontrfaktycznie uczona attention ma przy
-tym samym, dokładnym globalnym budżecie kanałów zachować więcej jakości niż
-utility-only. Aktualny dodatni wynik Tiny ImageNet seed 42 jest powodem do
-replikacji, nie końcowym dowodem.
+1. value-of-compute: `tinyimagenet_value_budget_muon_100e_seed123.yaml`;
+2. utility-only: `tinyimagenet_utility_floor_muon_100e_seed123.yaml`.
 
-## Artefakty
+Nie uruchamiamy 200 epok, trzeciego seeda, ConvNeXt ani ImageNet przed zakończeniem tej pary. Jeśli value nie wygra utility-only o co najmniej 0,5 pp w średniej obu seedów, hipotezę o przewadze jakości odrzucamy na tym mechanizmie i przechodzimy wyłącznie do diagnostyki agreement value--counterfactual.
 
-- Tiny value: `results/tinyimagenet/value_budget_muon/seed42/`;
-- Tiny utility control: `results/tinyimagenet/utility_floor_muon/seed42/`;
-- stan i mapa kodu: `VALUE_BUDGET_RESEARCH_LOG.md`;
-- wcześniejsza analiza porażki UCLA: `FAILURE_REPORT_GLOBAL_UCLA_SEED42.md`.
+## Wynik końcowy sparowanej replikacji 100 epok (2026-08-19)
+
+| Seed | value-of-compute | utility-only | Różnica value − utility |
+|---:|---:|---:|---:|
+| 42 | 58,36% | 58,33% | +0,03 pp |
+| 123 | 58,74% | 59,33% | −0,59 pp |
+| Średnia | 58,55% | 58,83% | −0,28 pp |
+
+**Decyzja go/no-go: NO-GO dla obecnego mechanizmu.** Metoda nie osiągnęła wymaganej przewagi średniej 0,5 pp; w drugim seedzie przegrywa o 0,59 pp. Nie uruchamiać 200 epok, trzeciego seeda, ConvNeXt ani ImageNet z tą wersją.
+
+Następny etap jest wyłącznie diagnostyczny i tani: (1) test overfitu głowy stage-value na zamrożonym batchu kontrfaktycznych targetów, aby potwierdzić przepływ gradientu; (2) 10-epokowy pilot bez testu, zwiększający częstotliwość targetu z co 32 batchy do co batch, bez jednoczesnej zmiany targetu; (3) tylko jeśli agreement przekroczy losowe 25%, oddzielna ablacją wagi value. Zmianę semantyki targetu (pełne porównanie dopuszczalnych transferów zamiast jednego arbitralnego) rozważyć dopiero, gdy te dwa testy wykażą, że problem nie jest wyłącznie zbyt słabym sygnałem uczenia.
