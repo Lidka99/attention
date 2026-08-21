@@ -1,0 +1,8 @@
+dataset: tinyimagenet
+data_dir: data/tiny-imagenet-200
+num_classes: 200
+seed: 2026
+batch_size: 64
+workers: 4
+training: {epochs: 20, learning_rate: 0.001, weight_decay: 0.0001, loss_weights: [0.25, 0.5, 1.0]}
+distributed: {world_size: 4}
