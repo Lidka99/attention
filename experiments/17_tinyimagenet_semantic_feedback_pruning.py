@@ -33,7 +33,7 @@ def main():
         torch.manual_seed(config["seed"] + ctx.rank)
         train, validation = build_tinyimagenet_loaders(config["data_dir"], config["batch_size"], config["workers"], ctx.enabled, ctx.rank, ctx.world_size)
         model = SemanticFeedbackPrunedResNet50(config["num_classes"], **config["model"], small_images=True).to(ctx.device)
-        if ctx.enabled: model = DistributedDataParallel(model, device_ids=[ctx.local_rank])
+        if ctx.enabled: model = DistributedDataParallel(model, device_ids=[ctx.local_rank], find_unused_parameters=True)
         raw = model.module if ctx.enabled else model; training = config["training"]; optimizer = torch.optim.AdamW(model.parameters(), lr=training["learning_rate"], weight_decay=training["weight_decay"])
         output, history = Path(args.output_dir), []
         if ctx.is_main: output.mkdir(parents=True, exist_ok=True)

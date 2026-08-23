@@ -45,7 +45,8 @@ latency, because masking alone is not speedup.
 
 ## Immediate experiment
 
-Run a 20-epoch Tiny ImageNet screen with seeds 42, 123 and 2026 after the
+Run a 20-epoch Tiny ImageNet screen with seeds 42, 123 and 2026 at 64 images
+per GPU (the established feasible ResNet-50 batch size) after the
 currently active static-depth control releases the GPUs.  The initial screen
 is an elimination test only, not publication evidence.  Promote only a
 consistent signal to 100/200-epoch training, physical channel compaction and
