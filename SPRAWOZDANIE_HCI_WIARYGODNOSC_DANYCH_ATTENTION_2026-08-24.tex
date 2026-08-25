@@ -333,22 +333,22 @@ baseline 72,20\% nie jest mieszany z tabelą 4-GPU jako identyczna kontrola.
 
 \section{Markery rzetelności M1--M6}
 
-\begin{longtable}{p{1.2cm}p{5.4cm}p{7.1cm}}
+\begin{longtable}{p{1.0cm}p{3.7cm}p{4.4cm}p{4.7cm}}
 \caption{Markery diagnostyczne projektu.}\\
 \toprule
-Marker & Pytanie & Metoda \\
+Marker & Nazwa & Pytanie & Metoda \\
 \midrule
 \endfirsthead
 \toprule
-Marker & Pytanie & Metoda \\
+Marker & Nazwa & Pytanie & Metoda \\
 \midrule
 \endhead
-M1 & Czy wybrane klasy tracą więcej? & Accuracy per klasa i delta względem baseline'u. \\
-M2 & Czy błędy są skoncentrowane? & $B=\sum_k|e_k-f_k|$, gdzie $e_k$ jest udziałem błędów, a $f_k$ częstością klasy. \\
-M3 & Czy próg pruning jest stabilny? & Sweep $\tau$ od $10^{-5}$ do $10^{-1}$, rozkład gate'ów i fragile ratio. \\
-M4 & Czy koszt dynamiczny zależy od klasy? & Korelacja Spearmana pomiędzy średnim gate'em per klasa i częstością klasy. \\
-M5 & Czy zmienia się reprezentacja? & Cosine similarity, KL po wymiarach i MMD embeddingów. \\
-M6 & Czy aktywacje są stabilne przy INT8? & Symulowana kwantyzacja, MSE, MAE, KL histogramów i outliers. \\
+M1 & Równość jakości między klasami & Czy wybrane klasy tracą więcej? & Accuracy per klasa i delta względem modelu bazowego. \\
+M2 & Koncentracja błędów & Czy błędy są skoncentrowane? & Wskaźnik rozbieżności udziału błędów i częstości klas. \\
+M3 & Stabilność progu & Czy próg pruning jest stabilny? & Sweep progu, rozkład wartości bramek i fragile ratio. \\
+M4 & Zależność kosztu od klasy & Czy koszt dynamiczny zależy od klasy? & Korelacja średniej aktywacji bramki dla klasy z częstością klasy. \\
+M5 & Stabilność reprezentacji & Czy zmienia się reprezentacja? & Cosine similarity, KL po wymiarach i MMD embeddingów. \\
+M6 & Odporność kwantyzacyjna & Czy aktywacje są stabilne przy INT8? & Symulowana kwantyzacja, MSE, MAE, KL histogramów i wartości odstające. \\
 \bottomrule
 \end{longtable}
 
@@ -365,7 +365,7 @@ reprezentatywności danych i wymagają interpretacji razem z protokołem.
 
 \section{Ciągłość obu faz badania}
 
-Obie wersje projektu nie są odrębnymi, niepowiązanymi badaniami.
+Obie fazy projektu nie są odrębnymi, niepowiązanymi badaniami.
 Pierwsza faza dostarczyła warstwy metodologicznej: audytu danych,
 markerów M1--M6, bootstrapu, analizy per klasa oraz rozróżnienia pomiędzy
 proxy sparsity i rzeczywistym kosztem. Druga faza wykorzystała te
@@ -375,22 +375,22 @@ regret i realnym prefix latency.
 
 Kolejne pojęcia można połączyć następująco:
 
-\begin{longtable}{p{2.0cm}p{5.5cm}p{6.0cm}}
+\begin{longtable}{p{1.2cm}p{3.6cm}p{4.7cm}p{4.7cm}}
 \caption{Przeniesienie markerów z channel gating na adaptive inference.}\\
 \toprule
-Marker & Pierwsza faza: channel gating & Druga faza: adaptive inference \\
+Marker & Nazwa & Pierwsza faza: bramkowanie kanałów & Druga faza: adaptacyjne wykonywanie \\
 \midrule
 \endfirsthead
 \toprule
-Marker & Pierwsza faza: channel gating & Druga faza: adaptive inference \\
+Marker & Nazwa & Pierwsza faza: bramkowanie kanałów & Druga faza: adaptacyjne wykonywanie \\
 \midrule
 \endhead
-M1 & Retencja accuracy per klasa po kompresji. & Delta per klasa: early-exit policy wobec full-depth i static-depth. \\
-M2 & Koncentracja błędów kompresji w klasach. & Koncentracja dodatkowych błędów wywołanych wczesnym wyjściem. \\
-M3 & Stabilność progu gate'ów i sparsity. & Stabilność progów confidence oraz krzywe accuracy--cost w sąsiedztwie wybranego progu. \\
-M4 & Zależność aktywacji dynamicznego gate'a od klasy. & Zależność średniego exit stage i kosztu obliczeń od klasy obrazu. \\
-M5 & Drift embeddingów po kompresji. & Podobieństwo reprezentacji i predykcji pomiędzy wcześniejszym i pełnym wyjściem. \\
-M6 & Stabilność aktywacji w symulacji INT8. & Stabilność confidence i decyzji exit po PTQ/QAT lub symulowanej kwantyzacji. \\
+M1 & Równość jakości między klasami & Retencja accuracy per klasa po kompresji. & Delta per klasa: early-exit policy wobec full-depth i static-depth. \\
+M2 & Koncentracja błędów & Koncentracja błędów kompresji w klasach. & Koncentracja dodatkowych błędów wywołanych wczesnym wyjściem. \\
+M3 & Stabilność progu & Stabilność progu bramek i sparsity. & Stabilność progów confidence oraz krzywej accuracy--cost. \\
+M4 & Zależność kosztu od klasy & Zależność aktywacji dynamicznej bramki od klasy. & Zależność średniego exit stage i kosztu od klasy obrazu. \\
+M5 & Stabilność reprezentacji & Drift embeddingów po kompresji. & Podobieństwo reprezentacji i predykcji pomiędzy wcześniejszym i pełnym wyjściem. \\
+M6 & Odporność kwantyzacyjna & Stabilność aktywacji w symulacji INT8. & Stabilność confidence i decyzji exit po PTQ/QAT lub symulowanej kwantyzacji. \\
 \bottomrule
 \end{longtable}
 
@@ -407,12 +407,12 @@ zapisać etykietę, predykcję full-depth, predykcję policy, wybrane wyjście,
 confidence i koszt. Na tej podstawie można policzyć:
 
 \begin{enumerate}
-  \item \textbf{M1-Exit}: accuracy policy i full-depth per klasa oraz
+  \item \textbf{M1-Exit --- retencja jakości między klasami}: accuracy policy i full-depth per klasa oraz
   $\Delta a_k$;
-  \item \textbf{M2-Exit}: rozkład dodatkowych błędów policy względem klas;
-  \item \textbf{M3-Exit}: zmianę accuracy, kosztu i exit rates przy małym
+  \item \textbf{M2-Exit --- koncentracja dodatkowych błędów}: rozkład dodatkowych błędów policy względem klas;
+  \item \textbf{M3-Exit --- stabilność decyzji progowej}: zmianę accuracy, kosztu i exit rates przy małym
   przesunięciu progów wokół wartości skalibrowanych;
-  \item \textbf{M4-Exit}: średni koszt i rozkład stage 2/3/4 per klasa oraz
+  \item \textbf{M4-Exit --- równość kosztu między klasami}: średni koszt i rozkład stage 2/3/4 per klasa oraz
   maksymalną różnicę kosztu między klasami;
   \item bootstrapowe 95\% CI dla największych degradacji i różnic kosztu.
 \end{enumerate}
@@ -423,7 +423,7 @@ gorszej obsługi części klas. Ponieważ CIFAR/Tiny ImageNet nie reprezentują 
 społecznych, wynik należy interpretować jako test metodologiczny, który później
 trzeba powtórzyć na grupach istotnych dla konkretnego zastosowania HCI.
 
-M5-Exit i M6-Exit mogą stanowić kolejną iterację. Nie są niezbędne do pierwszej
+M5-Exit (stabilność reprezentacji) i M6-Exit (odporność decyzji wyjścia na kwantyzację) mogą stanowić kolejną iterację. Nie są niezbędne do pierwszej
 wersji audytu, ale byłyby wartościowe przed claimem o odporności na zmianę
 reprezentacji lub kwantyzację.
 
