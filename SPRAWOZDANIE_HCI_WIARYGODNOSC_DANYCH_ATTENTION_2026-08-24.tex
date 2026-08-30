@@ -41,62 +41,36 @@ klasyfikacją obrazów i adaptacyjnym wykonywaniem sieci są studium przypadku,
 a nie pełnym raportem z badań.
 \end{abstract}
 
-\section{Punkt wyjścia i rozwinięcie wcześniejszej propozycji}
+\section{Rozwój i ostateczny kształt metody}
 
-Niniejsze sprawozdanie jest bezpośrednim rozwinięciem wcześniejszej propozycji
-oceny wiarygodności channel gatingu. W tamtym ujęciu punktem wyjścia było
-pytanie techniczne: czy deklarowana kompresja modelu jest wiarygodna, jeżeli
-średnia accuracy pozostaje wysoka. Odpowiedzią była \emph{decision map}
-zbudowana z markerów M1--M6: jakości per klasa, koncentracji błędów,
-stabilności progu, zależności budżetu od klasy, zmiany reprezentacji i
-odporności na kwantyzację.
+Punktem wyjścia było pytanie, czy deklarowana redukcja kosztu sieci jest
+wiarygodna, jeżeli model zachowuje wysoką średnią accuracy. Kolejne
+eksperymenty pokazały jednak, że nie można oddzielić oceny metody od oceny
+danych, na których formułowany jest wniosek. Analiza klas ujawniła lokalne
+różnice niewidoczne w średniej, analiza progów wykazała niestabilność
+deklarowanej rzadkości, audyt zbiorów wykrył problemy integralności, a pomiary
+rzeczywistego wykonania odróżniły wskaźniki pośrednie od korzyści możliwej do
+uzyskania w systemie.
 
-Podejście to było użyteczne, ale zbyt szybko przechodziło od danych do
-szczegółów mechanizmu kompresji. Nie wyjaśniało dostatecznie wyraźnie, jakie
-zjawisko ma być reprezentowane, kto korzysta z oceny i kiedy wynik wolno
-uogólnić poza benchmark. Obecna propozycja nie odrzuca wcześniejszych
-markerów. Umieszcza je wewnątrz szerszej oceny kompletności danych i zakresu
-stosowalności systemu.
+Na tej podstawie wszystkie kryteria połączono w jeden framework M1--M6.
+Każdy marker obejmuje zarówno jakość danych, jak i odpowiadające jej zachowanie modelu.
+Markery tworzą jeden mechanizm: od kontroli pochodzenia próbki, przez pokrycie zjawiska i przestrzeni
+ukrytej, aż do stabilności wyniku oraz adekwatności wdrożeniowej.
+
+Główne pytanie frameworku brzmi:
 
 \begin{quote}
-Wcześniejsza praca pytała, czy wynik kompresji modelu jest wiarygodny.
-Obecna praca pyta wcześniej i szerzej: czy dane wystarczająco opisują
-zjawisko, aby wynik działania i kompresji modelu mógł być wiarygodny dla
-określonego zastosowania HCI.
+Czy zgromadzone dane wystarczająco opisują badane zjawisko, aby wynik
+działania i ograniczania kosztu modelu był wiarygodny dla określonego
+zastosowania HCI?
 \end{quote}
 
-\begin{table}[ht]
-\centering
-\caption{Ciągłość pomiędzy wcześniejszą decision map a obecną propozycją.}
-\begin{tabularx}{\textwidth}{p{4.5cm}p{4.0cm}X}
-\toprule
-Wcześniejszy marker i jego nazwa & Rola w obecnej MPWD & Rozwinięcie wynikające z badań \\
-\midrule
-M1 --- zachowanie jakości w klasach; M2 --- koncentracja błędów & D5: równość jakości i kosztu & Analiza nie kończy się na klasach;
-obejmuje również regiony przestrzeni ukrytej i przypadki słabo pokryte. \\
-M3 --- stabilność decyzji progowej & D4: stabilność wniosków & Wrażliwość progu jest oceniana razem z
-niepewnością, seedami i przesunięciem rozkładu. \\
-M4 --- zależność budżetu od klasy & D5: równość jakości i kosztu & Budżet jest analizowany per klasa lub
-region danych, a nie wyłącznie jako średnia całego zbioru. \\
-M5 --- zmiana reprezentacji wewnętrznej & D3: pokrycie przestrzeni reprezentacji & Reprezentacja nie służy już
-tylko do porównania modeli; pomaga wykrywać luki w danych. \\
-M6 --- odporność aktywacji na kwantyzację & D6: adekwatność do zastosowania & Odporność techniczna jest jednym z
-warunków wdrożenia, obok zgodności domeny, urządzenia i warunków użycia. \\
-Decision map --- mapa decyzji & Raport MPWD dla specjalisty & Zachowano statusy
-``wystarczający'', ``ostrzeżenie'' i ``brak danych'', ale dodano granicę
-stosowalności oraz informację, jakich danych brakuje. \\
-\bottomrule
-\end{tabularx}
-\end{table}
-W dalszej części symbole D1--D6 zawsze oznaczają nowe markery danych, natomiast M1--M6 odnoszą się wyłącznie do markerów z wcześniejszego sprawozdania.
+Odpowiedzią nie jest jedna liczba ani automatyczna etykieta poprawności.
+Wynikiem jest mapa pokazująca, gdzie dane i model dają stabilne podstawy do
+wnioskowania, gdzie potrzebne jest ostrzeżenie oraz jakich obserwacji brakuje.
+Taki rezultat ma wspomagać specjalistę w podjęciu decyzji o dalszym badaniu,
+wdrożeniu albo ograniczeniu deklarowanego zakresu systemu.
 
-Kolejne eksperymenty dostarczyły podstaw do rozszerzenia. Audyt duplikatów
-pokazał, że wiarygodność zaczyna się przed oceną modelu. Wrażliwość bramek na
-próg wykazała, że pojedynczy parametr nie wystarcza do stabilnego wniosku.
-Eksperymenty wieloseedowe pokazały potrzebę raportowania niepewności, a
-rzeczywisty pomiar prefix-forward ujawnił różnicę pomiędzy wskaźnikiem
-pośrednim i korzyścią możliwą do odczucia w systemie. MPWD scala te obserwacje
-w jeden mechanizm oceny danych.
 
 \section{Dziedzina, zastosowanie i użytkownik}
 
@@ -170,30 +144,30 @@ Kod & Nazwa & Pytanie & Sposób oceny \\
 Kod & Nazwa & Pytanie & Sposób oceny \\
 \midrule
 \endhead
-D1 & Integralność i niezależność danych & Czy próbki, etykiety i podziały są
-poprawne? & Braki, duplikaty, konflikty etykiet, przecieki train--test i
-pochodzenie danych. \\
-D2 & Pokrycie zjawiska & Czy obecne są istotne warianty zjawiska? &
-Liczebności klas i kontekstów, kombinacje cech oraz mało liczne i puste
-obszary. \\
-D3 & Pokrycie przestrzeni reprezentacji & Czy dane obejmują różnorodność
-widoczną dla modelu? & Mapa reprezentacji ukrytej, lokalna gęstość, odległość
-od danych uczących i obserwacje odstające. \\
-D4 & Stabilność wniosków & Czy wynik utrzymuje się po zmianie próby lub
-ustawień? & Bootstrapowe przedziały ufności, wiele seedów, wrażliwość progów i
-przesunięcie rozkładu. \\
-D5 & Równość jakości i kosztu & Czy część danych nie jest systematycznie gorzej
-obsługiwana? & Trafność, kalibracja, dodatkowe błędy i koszt per klasa lub per
-region danych. \\
-D6 & Adekwatność do zastosowania & Czy dane odpowiadają warunkom planowanego
-użycia? & Porównanie źródła, rozdzielczości, klas, urządzenia i kontekstu z
-docelowym zastosowaniem; lista wyłączeń. \\
+M1 & Integralność i niezależność danych & Czy próbki, etykiety i podziały są
+poprawne i niezależne? & Braki, duplikaty, konflikty etykiet, przecieki
+train--test oraz udokumentowanie pochodzenia danych. \\
+M2 & Pokrycie zjawiska i błędów & Czy istotne warianty zjawiska są obecne,
+a błędy nie skupiają się w niedoreprezentowanej części danych? & Liczebności
+klas i kontekstów, rozkład błędów oraz mało liczne i puste obszary. \\
+M3 & Pokrycie i stabilność reprezentacji & Czy dane obejmują różnorodność widoczną
+dla modelu i czy reprezentacja pozostaje stabilna? & Lokalna gęstość, odległość
+od danych uczących, obserwacje odstające, cosine similarity i MMD. \\
+M4 & Stabilność decyzji i wniosków & Czy wynik utrzymuje się po zmianie próby,
+seeda lub progu? & Bootstrapowe przedziały ufności, wiele seedów, sweep
+progów i test przesunięcia rozkładu. \\
+M5 & Równość jakości i budżetu obliczeń & Czy część danych nie jest systematycznie
+gorzej obsługiwana? & Trafność, kalibracja, dodatkowe błędy, decyzje wyjścia
+i koszt per klasa lub per region danych. \\
+M6 & Adekwatność wdrożeniowa i odporność techniczna & Czy dane i model
+odpowiadają warunkom użycia? & Zgodność domeny i urządzenia, realny latency,
+PTQ/QAT, odporność na kwantyzację oraz jawna lista wyłączeń. \\
 \bottomrule
 \end{longtable}
 
-Markery dotyczą specyfiki zjawiska, nie tylko ogólnego próbkowania. D2 ocenia
-odmiany obrazu istotne dla rozpoznawania, D3 ujawnia luki widoczne dla modelu,
-a D5 łączy dane wejściowe z jakością i kosztem działania systemu.
+Markery dotyczą specyfiki zjawiska, nie tylko ogólnego próbkowania. M2 ocenia
+odmiany obrazu istotne dla rozpoznawania, M3 ujawnia luki widoczne dla modelu,
+a M5 łączy dane wejściowe z jakością i kosztem działania systemu.
 
 \subsection{Przestrzeń ukryta jako mapa braków}
 
@@ -219,7 +193,7 @@ Końcowy raport MPWD powinien zawierać cel i badaną populację, status każdeg
 markera (wystarczający, ostrzegawczy lub niewystarczający), mapę dobrze i słabo
 pokrytych regionów, jakość i koszt w tych regionach, przedziały ufności oraz
 jawną granicę stosowalności. Nie należy uśredniać markerów. Przeciek danych w
-D1 może blokować wniosek mimo dobrych pozostałych miar. Ograniczony D6 nie
+M1 może blokować wniosek mimo dobrych pozostałych miar. Ograniczony M6 nie
 unieważnia porównania benchmarkowego, lecz blokuje uogólnienie na inną domenę.
 
 \section{Studium przypadku z przeprowadzonych badań}
@@ -233,19 +207,19 @@ Poniższe obserwacje są przykładami użycia markerów, a nie kroniką badań.
 \toprule
 Marker & Obserwacja & Interpretacja \\
 \midrule
-D1 & W CIFAR-10 nie wykryto dokładnego nakładania train--test. W lokalnej
+M1 & W CIFAR-10 nie wykryto dokładnego nakładania train--test. W lokalnej
 kopii CIFAR-100 znaleziono 10 identycznych obrazów po obu stronach podziału. &
 Wniosek dla CIFAR-100 wymaga raportowania i analizy po usunięciu próbek. \\
-D4 & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
+M4 & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
 99,9--100\%. & Małe wartości bramek nie są stabilnym dowodem rzeczywistej
 redukcji kosztu. \\
-D4/D5 & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
+M4/M5 & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
 $-0{,}07\pm0{,}21$ \pp{} względem pełnej sieci przy koszcie 84,92\%. & Wynik
 jest powtarzalnym sygnałem, ale wymaga oceny per klasa i region reprezentacji. \\
-D5 & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
+M5 & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
 medianę czasu. & Pominięcie obliczeń potwierdzono tylko dla zbadanej
 konfiguracji, nie dla innych urządzeń i sposobów batchowania. \\
-D6 & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
+M6 & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
 metod, ale nie reprezentują dowolnych obrazów ani populacji użytkowników. \\
 \bottomrule
 \end{tabularx}
@@ -282,7 +256,7 @@ koszt oraz reprezentację ukrytą. Następnie należy:
  \item porównać błędy i koszt w regionach dobrze i słabo pokrytych;
  \item wyznaczyć bootstrapowe 95\% przedziały ufności;
  \item zbadać stabilność po niewielkim przesunięciu progów;
- \item wygenerować kartę zakresu stosowalności według D1--D6.
+ \item wygenerować kartę zakresu stosowalności według M1--M6.
 \end{enumerate}
 
 Zbyt mała liczebność regionu powinna dawać status ``nierozstrzygnięty'', a nie
