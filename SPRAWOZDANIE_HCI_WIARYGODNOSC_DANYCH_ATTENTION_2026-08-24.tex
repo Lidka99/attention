@@ -6,7 +6,7 @@
 \usepackage{geometry,enumitem,xcolor,hyperref,fancyhdr}
 \geometry{margin=2.5cm}
 \hypersetup{colorlinks=true,linkcolor=black,citecolor=blue!60!black,
-urlcolor=blue!60!black,pdftitle={Ocena kompletności i wiarygodności danych},
+urlcolor=blue!60!black,pdftitle={Assessing Data Reliability and Completeness in CNN Channel Gating Methods},
 pdfauthor={Lidia Cichońska}}
 \setlist{itemsep=0.25em,topsep=0.4em}
 \renewcommand{\arraystretch}{1.2}
@@ -112,7 +112,30 @@ Przyjęto następujące znaczenia pojęć:
 Nie istnieją dane reprezentatywne ``w ogóle''. Ten sam zbiór może być dobry
 do porównania metod i niewystarczający do oceny systemu w realnym środowisku.
 
-\section{Mapa decyzji o wiarygodności i kompletności danych}
+\section{Ocena rzetelności metod CNN channel gating}
+
+\subsection{Zakres metod CNN channel gating}
+
+Tytuł odnosi się do grupy metod, w których sieć przypisuje kanałom cech
+wartości określające ich znaczenie. Dla mapy cech $z_c$ działanie bramki można
+zapisać jako:
+
+\begin{equation}
+ z'_c = g_c(x)z_c,
+\end{equation}
+
+gdzie $g_c(x)$ jest wartością bramki. W bramkowaniu statycznym wartość jest
+wspólna dla wszystkich obrazów. W bramkowaniu dynamicznym zależy od wejścia,
+więc różne obrazy mogą otrzymać różne kanały lub różny budżet obliczeń. Ocena
+obejmuje oba warianty oraz ich porównanie z gęstym modelem bazowym.
+
+Należy odróżnić soft gating od strukturalnego pruning. Pomnożenie aktywacji
+przez małą wartość może zmniejszyć znaczenie kanału, ale nie musi usunąć
+konwolucji z grafu wykonania. Dlatego wiarygodność metody oceniamy na trzech
+poziomach: jakości predykcji, stabilności decyzji o kanałach oraz rzeczywistego
+kosztu po przebudowie lub pomiarze wykonania. Adaptacyjne wyjście i latency są
+w tym raporcie rozszerzeniem walidującym ten trzeci poziom, a nie osobnym
+przedmiotem badań.
 
 Proponowana mapa decyzji odpowiada na pytanie: \emph{czy mamy dobre dane do tego, co chcemy
 analizować?} Powstaje, gdy dostępne są obrazy, predykcje, reprezentacje ukryte
