@@ -112,16 +112,16 @@ Przyjęto następujące znaczenia pojęć:
 Nie istnieją dane reprezentatywne ``w ogóle''. Ten sam zbiór może być dobry
 do porównania metod i niewystarczający do oceny systemu w realnym środowisku.
 
-\section{Mapa Pokrycia i Wiarygodności Danych}
+\section{Mapa decyzji o wiarygodności i kompletności danych}
 
-MPWD odpowiada na pytanie: \emph{czy mamy dobre dane do tego, co chcemy
+Proponowana mapa decyzji odpowiada na pytanie: \emph{czy mamy dobre dane do tego, co chcemy
 analizować?} Powstaje, gdy dostępne są obrazy, predykcje, reprezentacje ukryte
 i rejestry kosztu. Kryteria powinny być jednak ustalone przed końcową analizą,
-aby ograniczyć dobieranie miar do korzystnego wyniku. MPWD jest kartą oceny,
+aby ograniczyć dobieranie miar do korzystnego wyniku. Mapa decyzji jest kartą oceny,
 a nie jedną liczbą.
 
 \begin{longtable}{p{4.0cm}p{4.6cm}p{5.5cm}}
-\caption{Markery Mapy Pokrycia i Wiarygodności Danych.}\\
+\caption{Markery mapy decyzji o wiarygodności i kompletności danych.}\\
 \toprule
 Nazwa markera & Pytanie & Sposób oceny \\
 \midrule
@@ -133,27 +133,27 @@ Nazwa markera & Pytanie & Sposób oceny \\
 Integralność i niezależność danych & Czy próbki, etykiety i podziały są
 poprawne i niezależne? & Braki, duplikaty, konflikty etykiet, przecieki
 train--test oraz udokumentowanie pochodzenia danych. \\
-Pokrycie zjawiska i błędów & Czy istotne warianty zjawiska są obecne,
+Jakość w klasach i koncentracja błędów & Czy istotne warianty zjawiska są obecne,
 a błędy nie skupiają się w niedoreprezentowanej części danych? & Liczebności
 klas i kontekstów, rozkład błędów oraz mało liczne i puste obszary. \\
-Pokrycie i stabilność reprezentacji & Czy dane obejmują różnorodność widoczną
+Analiza embeddingów & Czy dane obejmują różnorodność widoczną
 dla modelu i czy reprezentacja pozostaje stabilna? & Lokalna gęstość, odległość
 od danych uczących, obserwacje odstające, cosine similarity i MMD. \\
-Stabilność decyzji i wniosków & Czy wynik utrzymuje się po zmianie próby,
+Stabilność progu bramek & Czy wynik utrzymuje się po zmianie próby,
 seeda lub progu? & Bootstrapowe przedziały ufności, wiele seedów, sweep
 progów i test przesunięcia rozkładu. \\
-Równość jakości i budżetu obliczeń & Czy część danych nie jest systematycznie
+Zależność budżetu obliczeniowego od klasy & Czy część danych nie jest systematycznie
 gorzej obsługiwana? & Trafność, kalibracja, dodatkowe błędy, decyzje wyjścia
 i koszt per klasa lub per region danych. \\
-Adekwatność wdrożeniowa i odporność techniczna & Czy dane i model
+Odporność na kwantyzację i warunki wdrożenia & Czy dane i model
 odpowiadają warunkom użycia? & Zgodność domeny i urządzenia, realny latency,
 PTQ/QAT, odporność na kwantyzację oraz jawna lista wyłączeń. \\
 \bottomrule
 \end{longtable}
 
-Markery dotyczą specyfiki zjawiska, nie tylko ogólnego próbkowania. Marker pokrycia zjawiska i błędów ocenia
-odmiany obrazu istotne dla rozpoznawania, marker reprezentacji ujawnia luki widoczne dla modelu,
-a marker równości jakości i budżetu łączy dane wejściowe z jakością i kosztem działania systemu.
+Markery zachowują techniczne nazwy wynikające z eksperymentów. Jakość w klasach i koncentracja błędów pokazuje,
+czy średni wynik nie ukrywa problemu w części danych. Analiza embeddingów ujawnia luki widoczne dla modelu,
+a zależność budżetu od klasy łączy właściwości wejścia z jakością i kosztem działania systemu.
 
 \subsection{Przestrzeń ukryta jako mapa braków}
 
@@ -175,12 +175,12 @@ etykietami i prostym modelem odniesienia.
 
 \subsection{Wynik dla specjalisty}
 
-Końcowy raport MPWD powinien zawierać cel i badaną populację, status każdego
+Końcowy raport mapy decyzji powinien zawierać cel i badaną populację, status każdego
 markera (wystarczający, ostrzegawczy lub niewystarczający), mapę dobrze i słabo
 pokrytych regionów, jakość i koszt w tych regionach, przedziały ufności oraz
 jawną granicę stosowalności. Nie należy uśredniać markerów. Wykrycie przecieku przez marker integralności danych
-może blokować wniosek mimo dobrych pozostałych miar. Ograniczona adekwatność wdrożeniowa nie
-unieważnia porównania benchmarkowego, lecz blokuje uogólnienie na inną domenę.
+może blokować wniosek mimo dobrych pozostałych miar. Brak odporności na kwantyzację lub zgodności z warunkami wdrożenia
+nie unieważnia porównania benchmarkowego, lecz blokuje uogólnienie na inną domenę.
 
 \section{Studium przypadku z przeprowadzonych badań}
 
@@ -196,16 +196,16 @@ Marker & Obserwacja & Interpretacja \\
 Integralność i niezależność danych & W CIFAR-10 nie wykryto dokładnego nakładania train--test. W lokalnej
 kopii CIFAR-100 znaleziono 10 identycznych obrazów po obu stronach podziału. &
 Wniosek dla CIFAR-100 wymaga raportowania i analizy po usunięciu próbek. \\
-Stabilność decyzji i wniosków & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
+Stabilność progu bramek & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
 99,9--100\%. & Małe wartości bramek nie są stabilnym dowodem rzeczywistej
 redukcji kosztu. \\
-Stabilność wniosków oraz równość jakości i budżetu & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
+Zależność budżetu obliczeniowego od klasy & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
 $-0{,}07\pm0{,}21$ \pp{} względem pełnej sieci przy koszcie 84,92\%. & Wynik
 jest powtarzalnym sygnałem, ale wymaga oceny per klasa i region reprezentacji. \\
-Równość jakości i budżetu obliczeń & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
+Odporność na kwantyzację i warunki wdrożenia & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
 medianę czasu. & Pominięcie obliczeń potwierdzono tylko dla zbadanej
 konfiguracji, nie dla innych urządzeń i sposobów batchowania. \\
-Adekwatność wdrożeniowa i odporność techniczna & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
+Odporność na kwantyzację i warunki wdrożenia & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
 metod, ale nie reprezentują dowolnych obrazów ani populacji użytkowników. \\
 \bottomrule
 \end{tabularx}
@@ -231,7 +231,7 @@ jeszcze uogólniać wyniku na zastosowania o innym rozkładzie obrazów.
 
 \section{Proponowana analiza uzupełniająca}
 
-Pierwszą MPWD można przygotować bez nowego treningu. Dla każdego obrazu należy
+Pierwszą mapę decyzji można przygotować bez nowego treningu. Dla każdego obrazu należy
 zapisać etykietę, predykcję pełną i adaptacyjną, pewność, wybrane wyjście,
 koszt oraz reprezentację ukrytą. Następnie należy:
 
@@ -268,7 +268,7 @@ Klasy benchmarkowe nie są grupami społecznymi, dlatego analiza per klasa nie
 jest pełnym badaniem fairness. Jest próbą metodologiczną wykrywania
 nierównomiernego pokrycia. W zastosowaniu dotyczącym ludzi markery trzeba
 zdefiniować z ekspertem dziedzinowym, uwzględniając cechy chronione,
-konsekwencje błędu i możliwość zakwestionowania decyzji. MPWD nie może tworzyć
+konsekwencje błędu i możliwość zakwestionowania decyzji. Mapa decyzji nie może tworzyć
 pozoru obiektywności przez sprowadzenie problemów do jednej liczby.
 
 \section{Wniosek}
@@ -278,13 +278,13 @@ integralności podziałów, pokrycia wariantów obrazu, stabilności wyniku oraz
 tego, czy jakość i koszt nie pogarszają się w słabo reprezentowanych częściach
 danych.
 
-MPWD porządkuje ocenę za pomocą sześciu markerów: integralności i
-niezależności danych, pokrycia zjawiska, pokrycia przestrzeni reprezentacji,
-stabilności wniosków, równości jakości i kosztu oraz adekwatności do
-zastosowania. Jej wynikiem nie jest etykieta ``model wiarygodny'', lecz
-informacja, gdzie system jest mocny, gdzie brakuje danych i poza jakim
-zakresem należy ostrzec przed uogólnieniem. Dostępne eksperymenty pozwalają
-przygotować pierwszą taką ocenę bez ponownego treningu.
+Mapa decyzji porządkuje ocenę za pomocą sześciu markerów: integralności i niezależności
+danych, jakości w klasach i koncentracji błędów, analizy embeddingów, stabilności progu
+bramek, zależności budżetu obliczeniowego od klasy oraz odporności na kwantyzację
+i warunki wdrożenia.
+Jej wynikiem nie jest automatyczna etykieta poprawności, lecz wyjaśnialna
+informacja, gdzie system jest mocny, gdzie brakuje danych i poza jakim zakresem należy ostrzec przed uogólnieniem.
+Dostępne eksperymenty pozwalają przygotować pierwszą taką ocenę bez ponownego treningu.
 
 \begin{thebibliography}{9}
 \bibitem{cifar} A. Krizhevsky, \emph{Learning Multiple Layers of Features
