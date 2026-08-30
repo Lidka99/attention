@@ -38,7 +38,7 @@ deklarowanej rzadkości, audyt zbiorów wykrył problemy integralności, a pomia
 rzeczywistego wykonania odróżniły wskaźniki pośrednie od korzyści możliwej do
 uzyskania w systemie.
 
-Na tej podstawie wszystkie kryteria połączono w jeden framework M1--M6.
+Na tej podstawie wszystkie kryteria połączono w jeden framework sześciu wzajemnie uzupełniających się markerów.
 Każdy marker obejmuje zarówno jakość danych, jak i odpowiadające jej zachowanie modelu.
 Markery tworzą jeden mechanizm: od kontroli pochodzenia próbki, przez pokrycie zjawiska i przestrzeni
 ukrytej, aż do stabilności wyniku oraz adekwatności wdrożeniowej.
@@ -120,40 +120,40 @@ i rejestry kosztu. Kryteria powinny być jednak ustalone przed końcową analiz�
 aby ograniczyć dobieranie miar do korzystnego wyniku. MPWD jest kartą oceny,
 a nie jedną liczbą.
 
-\begin{longtable}{p{1.0cm}p{3.6cm}p{4.4cm}p{5.2cm}}
+\begin{longtable}{p{4.0cm}p{4.6cm}p{5.5cm}}
 \caption{Markery Mapy Pokrycia i Wiarygodności Danych.}\\
 \toprule
-Kod & Nazwa & Pytanie & Sposób oceny \\
+Nazwa markera & Pytanie & Sposób oceny \\
 \midrule
 \endfirsthead
 \toprule
-Kod & Nazwa & Pytanie & Sposób oceny \\
+Nazwa markera & Pytanie & Sposób oceny \\
 \midrule
 \endhead
-M1 & Integralność i niezależność danych & Czy próbki, etykiety i podziały są
+Integralność i niezależność danych & Czy próbki, etykiety i podziały są
 poprawne i niezależne? & Braki, duplikaty, konflikty etykiet, przecieki
 train--test oraz udokumentowanie pochodzenia danych. \\
-M2 & Pokrycie zjawiska i błędów & Czy istotne warianty zjawiska są obecne,
+Pokrycie zjawiska i błędów & Czy istotne warianty zjawiska są obecne,
 a błędy nie skupiają się w niedoreprezentowanej części danych? & Liczebności
 klas i kontekstów, rozkład błędów oraz mało liczne i puste obszary. \\
-M3 & Pokrycie i stabilność reprezentacji & Czy dane obejmują różnorodność widoczną
+Pokrycie i stabilność reprezentacji & Czy dane obejmują różnorodność widoczną
 dla modelu i czy reprezentacja pozostaje stabilna? & Lokalna gęstość, odległość
 od danych uczących, obserwacje odstające, cosine similarity i MMD. \\
-M4 & Stabilność decyzji i wniosków & Czy wynik utrzymuje się po zmianie próby,
+Stabilność decyzji i wniosków & Czy wynik utrzymuje się po zmianie próby,
 seeda lub progu? & Bootstrapowe przedziały ufności, wiele seedów, sweep
 progów i test przesunięcia rozkładu. \\
-M5 & Równość jakości i budżetu obliczeń & Czy część danych nie jest systematycznie
+Równość jakości i budżetu obliczeń & Czy część danych nie jest systematycznie
 gorzej obsługiwana? & Trafność, kalibracja, dodatkowe błędy, decyzje wyjścia
 i koszt per klasa lub per region danych. \\
-M6 & Adekwatność wdrożeniowa i odporność techniczna & Czy dane i model
+Adekwatność wdrożeniowa i odporność techniczna & Czy dane i model
 odpowiadają warunkom użycia? & Zgodność domeny i urządzenia, realny latency,
 PTQ/QAT, odporność na kwantyzację oraz jawna lista wyłączeń. \\
 \bottomrule
 \end{longtable}
 
-Markery dotyczą specyfiki zjawiska, nie tylko ogólnego próbkowania. M2 ocenia
-odmiany obrazu istotne dla rozpoznawania, M3 ujawnia luki widoczne dla modelu,
-a M5 łączy dane wejściowe z jakością i kosztem działania systemu.
+Markery dotyczą specyfiki zjawiska, nie tylko ogólnego próbkowania. Marker pokrycia zjawiska i błędów ocenia
+odmiany obrazu istotne dla rozpoznawania, marker reprezentacji ujawnia luki widoczne dla modelu,
+a marker równości jakości i budżetu łączy dane wejściowe z jakością i kosztem działania systemu.
 
 \subsection{Przestrzeń ukryta jako mapa braków}
 
@@ -178,8 +178,8 @@ etykietami i prostym modelem odniesienia.
 Końcowy raport MPWD powinien zawierać cel i badaną populację, status każdego
 markera (wystarczający, ostrzegawczy lub niewystarczający), mapę dobrze i słabo
 pokrytych regionów, jakość i koszt w tych regionach, przedziały ufności oraz
-jawną granicę stosowalności. Nie należy uśredniać markerów. Przeciek danych w
-M1 może blokować wniosek mimo dobrych pozostałych miar. Ograniczony M6 nie
+jawną granicę stosowalności. Nie należy uśredniać markerów. Wykrycie przecieku przez marker integralności danych
+może blokować wniosek mimo dobrych pozostałych miar. Ograniczona adekwatność wdrożeniowa nie
 unieważnia porównania benchmarkowego, lecz blokuje uogólnienie na inną domenę.
 
 \section{Studium przypadku z przeprowadzonych badań}
@@ -189,23 +189,23 @@ Poniższe obserwacje są przykładami użycia markerów, a nie kroniką badań.
 \begin{table}[ht]
 \centering
 \caption{Przykłady zastosowania markerów.}
-\begin{tabularx}{\textwidth}{p{1.0cm}p{4.2cm}X}
+\begin{tabularx}{\textwidth}{p{4.0cm}p{4.5cm}X}
 \toprule
 Marker & Obserwacja & Interpretacja \\
 \midrule
-M1 & W CIFAR-10 nie wykryto dokładnego nakładania train--test. W lokalnej
+Integralność i niezależność danych & W CIFAR-10 nie wykryto dokładnego nakładania train--test. W lokalnej
 kopii CIFAR-100 znaleziono 10 identycznych obrazów po obu stronach podziału. &
 Wniosek dla CIFAR-100 wymaga raportowania i analizy po usunięciu próbek. \\
-M4 & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
+Stabilność decyzji i wniosków & Udział małych bramek silnie zależał od progu; fragile ratio osiągał
 99,9--100\%. & Małe wartości bramek nie są stabilnym dowodem rzeczywistej
 redukcji kosztu. \\
-M4/M5 & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
+Stabilność wniosków oraz równość jakości i budżetu & W trzech seedach adaptacyjne wyjście zmieniło średnią trafność o
 $-0{,}07\pm0{,}21$ \pp{} względem pełnej sieci przy koszcie 84,92\%. & Wynik
 jest powtarzalnym sygnałem, ale wymaga oceny per klasa i region reprezentacji. \\
-M5 & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
+Równość jakości i budżetu obliczeń & Prefix-forward dla batch size 1 wskazał około 14,6\% krótszą oczekiwaną
 medianę czasu. & Pominięcie obliczeń potwierdzono tylko dla zbadanej
 konfiguracji, nie dla innych urządzeń i sposobów batchowania. \\
-M6 & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
+Adekwatność wdrożeniowa i odporność techniczna & CIFAR i Tiny ImageNet są małymi benchmarkami. & Umożliwiają porównanie
 metod, ale nie reprezentują dowolnych obrazów ani populacji użytkowników. \\
 \bottomrule
 \end{tabularx}
@@ -242,7 +242,7 @@ koszt oraz reprezentację ukrytą. Następnie należy:
  \item porównać błędy i koszt w regionach dobrze i słabo pokrytych;
  \item wyznaczyć bootstrapowe 95\% przedziały ufności;
  \item zbadać stabilność po niewielkim przesunięciu progów;
- \item wygenerować kartę zakresu stosowalności według M1--M6.
+ \item wygenerować kartę zakresu stosowalności zgodną z sześcioma markerami.
 \end{enumerate}
 
 Zbyt mała liczebność regionu powinna dawać status ``nierozstrzygnięty'', a nie
