@@ -20,7 +20,7 @@ pdfauthor={Lidia Cichońska}}
 
 \title{Assessing Data Reliability and Completeness in CNN Channel Gating Methods}
 \author{Lidia Cichońska}
-\date{25 sierpnia 2026 r.}
+\date{5 września 2026 r.}
 
 \begin{document}
 \maketitle
@@ -96,6 +96,53 @@ reprezentację ukrytą, wybrane wyjście sieci, koszt, czas wykonania, seed i
 konfigurację. Połączenie danych z obrazu, bazy i rejestrów systemowych pozwala
 sprawdzić, czy oszczędność obliczeń nie ukrywa pogorszenia jakości.
 
+\subsection{Akwizycja, podziały i przetwarzanie danych}
+
+Dane CIFAR wczytywano z kanonicznych lokalnych archiwów przez klasy
+\texttt{torchvision.datasets.CIFAR10} i \texttt{CIFAR100}; do audytu nie
+dodawano próbek zewnętrznych. Tiny ImageNet wczytywano z katalogu treningowego
+oraz oficjalnego pliku adnotacji walidacyjnych. Tabela rozdziela faktycznie
+zastosowany protokół od ograniczeń jego reprezentatywności.
+
+\begin{table}[ht]
+\centering
+\caption{Charakterystyka i rola danych w eksperymentach.}
+\begin{tabularx}{\textwidth}{p{2.3cm}p{3.4cm}p{4.9cm}X}
+\toprule
+Zbiór & Liczebność i format & Podział i preprocessing & Rola oraz ograniczenie \\
+\midrule
+CIFAR-10 & 50,000 train, 10,000 test; 10 klas; obrazy $32\times32$ RGB &
+RandomCrop z paddingiem 4, odbicie poziome i normalizacja w treningu;
+ToTensor i normalizacja w teście. & Pełny test checkpointów i markerów.
+Zbiór jest zbalansowany, ale mały i niedomenowy. \\
+CIFAR-100 & 50,000 train, 10,000 test; 100 klas; obrazy $32\times32$ RGB &
+W nowszym protokole deterministyczny podział 45,000/5,000 ze split seed 42;
+augmentacja wyłącznie w train. & Trudniejszy benchmark oraz test globalnego
+budżetu. Test nie służy do doboru progów. \\
+Tiny ImageNet & 100,000 train, 10,000 validation; 200 klas; obrazy
+$64\times64$ RGB & RandomCrop z paddingiem 8, odbicie i normalizacja ImageNet;
+walidacja bez augmentacji. W early exit: 5,000 calibration i 5,000 held-out.
+& Rozszerzenie poza CIFAR; nadal nie jest konkretną domeną wdrożeniową. \\
+Rejestry systemowe & Jedna obserwacja na obraz, model i konfigurację &
+Predykcja, etykieta, confidence, gate/exit, embedding, koszt, latency, seed i
+wersja konfiguracji. & Łączą obraz z decyzją i kosztem; brak pola oznacza
+niekompletność danego markera, a nie wynik równy zero. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Audyt wykonywano na surowych tablicach obrazów przed augmentacją, wykorzystując
+dokładne porównanie zawartości próbek. CIFAR-10 miał po 5,000 obrazów każdej
+klasy w train i 1,000 w test, poprawny zakres etykiet, brak duplikatów
+wewnętrznych i brak dokładnego overlapu train--test. W lokalnym CIFAR-100
+wszystkie klasy również były równoliczne, ale wykryto 14 duplikatów w train,
+2 w test i 10 obrazów wspólnych dla train i test. Dlatego drobne różnice na
+CIFAR-100 wymagają analizy wrażliwości po wyłączeniu tych próbek.
+
+Pełny test CIFAR-10 wykorzystano do audytu istniejących checkpointów. Wynik ten
+opisuje badaną rodzinę modeli, lecz nie powinien być używany do wtórnego doboru
+progu i ponownego raportowania tego samego testu jako niezależnej walidacji.
+
 Przyjęto następujące znaczenia pojęć:
 
 \begin{description}
@@ -136,6 +183,42 @@ poziomach: jakości predykcji, stabilności decyzji o kanałach oraz rzeczywiste
 kosztu po przebudowie lub pomiarze wykonania. Adaptacyjne wyjście i latency są
 w tym raporcie rozszerzeniem walidującym ten trzeci poziom, a nie osobnym
 przedmiotem badań.
+
+\subsection{Metody, dane i stan dowodu}
+
+Warianty oceniano względem modelu bez bramek przy możliwie wspólnym backbone,
+danych i budżecie treningowym. Status \emph{wykonane} oznacza dostępny wynik i
+artefakt ewaluacji; \emph{częściowe} oznacza pojedynczy seed, proxy kosztu lub
+brak finalnej kontroli; \emph{rozszerzenie} nie jest dowodem skuteczności
+channel gatingu.
+
+\begin{longtable}{p{3.2cm}p{3.0cm}p{5.2cm}p{2.6cm}}
+\caption{Metody objęte oceną i status dowodu.}\\
+\toprule
+Metoda & Dane/protokół & Najważniejszy wynik & Status \\
+\midrule
+\endfirsthead
+\toprule
+Metoda & Dane/protokół & Najważniejszy wynik & Status \\
+\midrule
+\endhead
+Dense ResNet-18 & CIFAR-10, pełny test & 93,48\% Top-1; wspólny punkt
+odniesienia dla wariantów bramkowanych. & wykonane \\
+Static L1 gating & CIFAR-10; CIFAR-100 seed 42 & Na CIFAR-10: 91,58\%
+($\beta=0{,}2$) i 91,28\% ($\beta=0{,}5$). Na CIFAR-100: 71,59\% wobec
+71,83\% kontroli przy 45,5\% proxy sparsity. & częściowe \\
+SE, dynamiczne bramkowanie & CIFAR-10, pełny test & 91,49\% dla
+$\beta=0{,}2$; brak przewagi nad dense. & wykonane dla benchmarku \\
+Gumbel gating & CIFAR-10, pełny test & 92,60\% dla $\beta=0{,}2$; najlepszy
+wariant bramkowany, nadal poniżej dense. & wykonane dla benchmarku \\
+Dynamiczny routing z exact budget & CIFAR-100, 200 epok, seed 42 & 69,82\%
+wobec 71,58\% matched utility-only; sparowana różnica $-1{,}76$ p.p.,
+95\% CI $[-2{,}58;-0{,}93]$. & wykonane; hipoteza niepotwierdzona \\
+Early exit & Tiny ImageNet, 20 epok, seedy 42, 123, 2026 & Średnia różnica
+$-0{,}07\pm0{,}21$ p.p. względem pełnej ścieżki przy koszcie 84,92\%. &
+rozszerzenie walidacyjne \\
+\bottomrule
+\end{longtable}
 
 Proponowana mapa decyzji odpowiada na pytanie: \emph{czy mamy dobre dane do tego, co chcemy
 analizować?} Powstaje, gdy dostępne są obrazy, predykcje, reprezentacje ukryte
@@ -178,6 +261,60 @@ Markery zachowują techniczne nazwy wynikające z eksperymentów. Jakość w kla
 czy średni wynik nie ukrywa problemu w części danych. Analiza embeddingów ujawnia luki widoczne dla modelu,
 a zależność budżetu od klasy łączy właściwości wejścia z jakością i kosztem działania systemu.
 
+\subsection{Status wykonania markerów}
+
+\begin{longtable}{p{4.2cm}p{2.6cm}p{4.1cm}p{3.2cm}}
+\caption{Co zostało wykonane, a co pozostaje do sprawdzenia.}\\
+\toprule
+Marker & Status & Dostępny dowód & Brakujący element \\
+\midrule
+\endfirsthead
+\toprule
+Marker & Status & Dostępny dowód & Brakujący element \\
+\midrule
+\endhead
+Integralność i niezależność danych & częściowo wykonane & Pełny audyt exact
+duplicates CIFAR-10/100. & Deduplikowana analiza CIFAR-100 i audyt Tiny
+ImageNet. \\
+Jakość w klasach i koncentracja błędów & częściowo wykonane & Wyniki per
+klasa i indeks koncentracji na pełnym CIFAR-10. & Wieloseedowe CI oraz analiza
+regionów przestrzeni danych. \\
+Analiza embeddingów & częściowo wykonane & Cosine similarity 0,9612 i 0,9558
+dla statycznych checkpointów. & Lokalna gęstość, pokrycie i test przesunięcia
+domeny. \\
+Stabilność progu bramek & wykonane z ostrzeżeniem & Fragile ratio 99,9\% i
+100\% w badanych checkpointach. & Wybór progu na validation i replikacja
+między seedami. \\
+Zależność budżetu obliczeniowego od klasy & niepełne & Infrastruktura zapisuje
+decyzje per próbka; dla bramki statycznej marker jest nieaplikowalny. & Pełny
+raport per klasa dla dynamicznego routingu. \\
+Odporność na kwantyzację i warunki wdrożenia & wstępne & Symulowane błędy
+aktywacji oraz prefix latency batch 1. & Rzeczywiste PTQ/QAT, end-to-end
+P50/P95/P99, CPU i większe batche. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Kryteria statystyczne i zasady decyzji}
+
+Modele porównywane na tych samych obrazach należy analizować parami. Dla
+każdej próbki zapisuje się różnicę wskaźników poprawności, a następnie oblicza
+średnią i bootstrapowy 95\% przedział ufności z 1,000 replikacji oraz stałym
+seedem procedury. Dla serii treningów raportuje się każdy seed, średnią i
+odchylenie standardowe; trzy seedy są minimum diagnostycznym, a nie podstawą do
+precyzyjnego oszacowania małego efektu.
+
+Próg bramek, współczynnik regularyzacji i parametry polityki wybiera się na
+validation/calibration, nigdy przez maksymalizację wyniku testowego. Wynik per
+klasa powinien obejmować liczebność, accuracy, zmianę względem kontroli i
+przedział ufności. Brak istotnej różnicy przy małej liczebności otrzymuje status
+\emph{nierozstrzygnięty}, a nie \emph{równoważny}.
+
+Mapa decyzji nie używa jednej uniwersalnej średniej. Naruszenie niezależności
+train--test blokuje silny wniosek do czasu analizy wrażliwości. Twierdzenie o
+speedupie wymaga fizycznego pominięcia operatorów i pomiaru latency. Progi
+akceptacji jakości oraz kosztu muszą wynikać z zastosowania HCI i powinny być
+ustalone przed końcową ewaluacją.
+
 \subsection{Przestrzeń ukryta jako mapa braków}
 
 Etykiety klas nie opisują całej zmienności. Obrazy tej samej klasy mogą różnić
@@ -204,6 +341,30 @@ pokrytych regionów, jakość i koszt w tych regionach, przedziały ufności ora
 jawną granicę stosowalności. Nie należy uśredniać markerów. Wykrycie przecieku przez marker integralności danych
 może blokować wniosek mimo dobrych pozostałych miar. Brak odporności na kwantyzację lub zgodności z warunkami wdrożenia
 nie unieważnia porównania benchmarkowego, lecz blokuje uogólnienie na inną domenę.
+
+\section{Osadzenie w aktualnym stanie wiedzy}
+
+Squeeze-and-Excitation jest punktem odniesienia dla wejściowo zależnego
+ważenia kanałów \cite{senet}. Nowsze prace idą dalej w stronę wykonywalnej
+redukcji kosztu. BilevelPruning łączy statyczne i dynamiczne channel pruning i
+fizycznie usuwa część parametrów \cite{bilevel}, natomiast Pick-or-Mix
+realizuje dynamiczne próbkowanie kanałów oraz raportuje rzeczywisty pomiar
+szybkości \cite{pix}. Oznacza to, że sama obecność uczonych gate'ów nie jest
+nowością i nie wystarcza do twierdzenia o efektywności.
+
+Dla adaptacyjnego wykonywania aktualna literatura podkreśla kalibrację i
+spójność niepewności. Meronen i in. analizują problem nadmiernej pewności przy
+wyborze budżetu \cite{overconfidence}, a Jazbec i in. pokazują potrzebę
+spójnych zbiorów predykcji między kolejnymi wyjściami \cite{nested}. Uzasadnia
+to umieszczenie kalibracji, stabilności progu i wyników per grupa danych w
+mapie decyzji.
+
+Proponowany wkład nie polega na przedstawieniu nowej architektury bramkującej.
+Jest nim dziedzinowa procedura oceny, czy dane i rejestry eksperymentu
+wystarczają do wiarygodnego wnioskowania o jakości, kompresji i koszcie metod
+CNN channel gating. Wartość procedury trzeba ostatecznie potwierdzić, pokazując,
+że zmienia wybór modelu albo przewiduje problem ujawniony przy domain shift lub
+wdrożeniu.
 
 \section{Studium przypadku z przeprowadzonych badań}
 
@@ -294,6 +455,13 @@ zdefiniować z ekspertem dziedzinowym, uwzględniając cechy chronione,
 konsekwencje błędu i możliwość zakwestionowania decyzji. Mapa decyzji nie może tworzyć
 pozoru obiektywności przez sprowadzenie problemów do jednej liczby.
 
+Nie przeprowadzono dotąd badania użytkowników ani pomiaru wpływu opóźnienia
+na wykonanie zadania przez człowieka. Związek obecnej analizy z HCI dotyczy
+zatem projektowania, audytu i komunikowania ograniczeń komponentu
+informatycznego używanego przez człowieka, a nie dowodu poprawy doświadczenia
+użytkownika. Taki dowód wymagałby osobnego protokołu z zadaniem, populacją
+uczestników oraz miarami skuteczności, czasu, obciążenia i zaufania.
+
 \section{Wniosek}
 
 Wiarygodność systemu analizy obrazu zależy od zgodności danych ze zjawiskiem,
@@ -309,7 +477,7 @@ Jej wynikiem nie jest automatyczna etykieta poprawności, lecz wyjaśnialna
 informacja, gdzie system jest mocny, gdzie brakuje danych i poza jakim zakresem należy ostrzec przed uogólnieniem.
 Dostępne eksperymenty pozwalają przygotować pierwszą taką ocenę bez ponownego treningu.
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{99}
 \bibitem{cifar} A. Krizhevsky, \emph{Learning Multiple Layers of Features
 from Tiny Images}, 2009.
 \bibitem{resnet} K. He i in., ``Deep Residual Learning for Image
@@ -323,6 +491,14 @@ ICPR, 2016.
 Shift in Machine Learning}, MIT Press, 2009.
 \bibitem{modelcards} M. Mitchell i in., ``Model Cards for Model Reporting'',
 FAT*, 2019.
+\bibitem{bilevel} S. Gao i in., ``BilevelPruning: Unified Dynamic and Static
+Channel Pruning for Convolutional Neural Networks'', CVPR, 2024.
+\bibitem{pix} A. Kumar i in., ``Pick-or-Mix: Dynamic Channel Sampling for
+ConvNets'', CVPR, 2024.
+\bibitem{overconfidence} L. Meronen i in., ``Fixing Overconfidence in Dynamic
+Neural Networks'', WACV, 2024.
+\bibitem{nested} M. Jazbec i in., ``Multilinear and Nested Prediction Sets
+for Dynamic Neural Networks'', UAI, 2024.
 \end{thebibliography}
 
 \end{document}
