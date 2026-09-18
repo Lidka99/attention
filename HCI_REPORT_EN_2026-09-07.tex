@@ -1,0 +1,764 @@
+% !TeX program = lualatex
+\documentclass[12pt,a4paper]{article}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{geometry,enumitem,xcolor,fancyhdr}
+\usepackage{xcharter-otf}
+\usepackage{tabularray}
+\UseTblrLibrary{booktabs}
+\usepackage[hyphens]{url}
+\usepackage{caption}
+\captionsetup{format=hang,justification=justified,singlelinecheck=false,
+  margin=0pt,font=small,labelfont=bf,labelsep=colon}
+\usepackage{hyperref}
+\geometry{margin=2.5cm}
+\usepackage{setspace}
+\onehalfspacing
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=blue!60!black,
+urlcolor=blue!60!black,
+pdftitle={Data reliability and representativeness in CNN channel gating research},
+pdfauthor={Lidia Cichońska}}
+\setlist{itemsep=0.2em,topsep=0.4em}
+\setlength{\headheight}{15pt}
+\setlength{\emergencystretch}{2em}
+\pagestyle{fancy}
+\fancyhf{}
+% \lhead{Data reliability in CNN research}
+% \rhead{Lidia Cichońska}
+\cfoot{\thepage}
+\newcommand{\pp}{pp}
+\SetTblrInner[tblr,longtblr]{
+  width=\linewidth, colsep=5pt, rowsep=4pt,
+  cells={font=\small,halign=c,valign=m},
+  row{1}={font=\small\bfseries},
+}
+\SetTblrStyle{caption-tag}{font=\bfseries}
+\SetTblrStyle{firsthead,middlehead,lasthead}{font=\small}
+\SetTblrTemplate{caption,capcont}{normal}
+
+\title{Data reliability and representativeness\\
+in CNN channel gating research\\[0.5em]
+\large Iterative evaluation of compression and adaptive inference\\
+for components of HCI systems}
+\author{Lidia Cichońska}
+\date{5 September 2026}
+
+\begin{document}
+\maketitle
+
+\section{Research problem and relevance to HCI}
+
+The research forms part of doctoral work on deep neural model compression
+using structural sparsification, quantization and entropy coding.
+This report focuses on learned attention mechanisms and channel gates,
+together with their extension towards adaptive network depth.
+
+The technical question is whether a model can reduce its use of channels
+or computational blocks without an unacceptable loss of classification
+accuracy. The central methodological question is:
+\begin{quote}
+Do the provenance, integrity, partitioning and coverage of the data,
+together with the experimental design, support a credible assessment
+of this trade-off and its generalization to an intended HCI application?
+\end{quote}
+
+The intended context is an image recognition component in an interactive
+application, for example on a device with limited resources.
+Misclassification may provide a person with incorrect information,
+while latency may affect the interaction.
+
+In this report, \emph{data reliability} refers to documented provenance
+and checks of data correctness; \emph{evaluation rigor} refers to the
+ability to reproduce results and characterize their uncertainty;
+\emph{completeness} refers to the availability of the observations and
+metadata needed to answer the research question; and
+\emph{representativeness} refers to the correspondence between the sample
+and the population to which a conclusion applies. A dataset may be complete
+in terms of files and labels while failing to cover conditions important
+to future users.
+
+\section{Data: provenance, acquisition and representativeness}
+
+\subsection{Dataset characteristics}
+
+The experiments reused public, labeled image datasets. CIFAR-10 and
+CIFAR-100 are subsets of the Tiny Images collection \cite{cifar};
+Tiny ImageNet is a subset of ImageNet comprising 200 categories
+\cite{tinyimagenet}. The project did not collect new images from users
+or independently relabel the complete datasets. Inter-annotator agreement
+was not assessed. Reference labels were adopted from the benchmarks,
+which supports comparison but does not guarantee that every annotation
+is semantically correct.
+
+\begin{table}[htbp]
+\centering\small\singlespacing
+\caption{Image datasets used in the experiments. Counts refer to the official splits.}
+\begin{tblr}{
+  colspec={Q[c] Q[c] Q[c] Q[c] X[2.6,c]},
+  row{1}={halign=c},
+}
+\toprule
+Dataset & Classes & Training & Evaluation & Format and samples per class \\
+\midrule
+CIFAR-10 & 10 & 50\,000 & 10\,000 & $32\times32$ RGB;
+5\,000 training and 1\,000 test images per class. \\
+CIFAR-100 & 100 & 50\,000 & 10\,000 & $32\times32$ RGB;
+500 training and 100 test images per class. \\
+Tiny ImageNet & 200 & 100\,000 & 10\,000 & $64\times64$ RGB;
+500 training and 50 validation images per class. \\
+\bottomrule
+\end{tblr}
+\end{table}
+
+Training used random cropping with padding of 4 pixels for CIFAR or
+8 pixels for Tiny ImageNet, together with horizontal flipping.
+After conversion to tensors, images were normalized according to the
+relevant protocol; Tiny ImageNet used the ImageNet means and standard
+deviations. Evaluation did not include random augmentation.
+Augmentation increases training variation but does not create new
+independent observations or replace data from the target domain.
+
+\subsection{Data splits and independence of evaluation}
+
+The protocols evolved as problems were diagnosed. Safeguards introduced
+later should not be attributed retrospectively to earlier experiments.
+\begin{enumerate}
+\item Existing checkpoints were reevaluated on
+the complete CIFAR-10 test set. The audit covered seed 42 and 10\,000
+images. It was not an independent replication of training.
+\item In the 200-epoch global UCLA experiment on CIFAR-100, test performance
+was monitored during training. The comparison used the predetermined
+epoch 200, which limits favorable checkpoint selection but does not remove
+the risk that observed test results influenced subsequent research decisions.
+\item A random, deterministic split of the CIFAR-100 training set into
+45\,000 training and 5\,000 validation images was introduced later,
+using split seed 42. The code permutes indices without guaranteeing
+class stratification. Disjoint indices do not exclude identical image content.
+\item In the early-exit pilot, the Tiny ImageNet validation set was divided
+into the first 5\,000 samples for threshold selection and the remaining
+5\,000 for evaluation.
+The adapter sorts samples by filename. This deterministic partition
+involves neither randomization nor stratification; class counts and
+the distributions of both subsets require inspection.
+It is not a new test set from an independent domain.
+\end{enumerate}
+
+In future iterations, data partitions and model selection rules should
+be fixed before evaluation. Thresholds should be selected on the calibration
+set and final accuracy measured on data not used for that selection.
+Repeatedly analyzing the same held-out set while developing a method
+gradually weakens its independence.
+
+\subsection{Integrity audit and its limitations}
+
+The audit script computed SHA-256 hashes of raw image content before
+augmentation and checked sample counts, format, value and label ranges,
+and hashes shared across splits. The results are presented in the table below.
+
+\begin{table}[htbp]
+\centering\small\singlespacing
+\caption{Audit of the local CIFAR copies, conducted on 21 July 2026.}
+\begin{tblr}{colspec={X[3,c] X[1,c] X[1,c]}}
+\toprule
+Check & CIFAR-10 & CIFAR-100 \\
+\midrule
+Duplicate image copies beyond the unique count in training & 0 & 14 \\
+Duplicate image copies beyond the unique count in testing & 0 & 2 \\
+Distinct hashes shared between training and testing & 0 & 10 \\
+All classes present and equally frequent within each official split & yes & yes \\
+Labels within the valid range & yes & yes \\
+\bottomrule
+\end{tblr}
+\end{table}
+
+The number of shared hashes need not equal the number of affected records,
+because an image may have multiple copies. The CIFAR-100 finding warrants
+reporting content leakage and performing a sensitivity analysis that
+excludes the affected test records alongside evaluation on the canonical
+test set. The procedure for this analysis has been implemented, but
+its results have not been established in the evaluation reported here.
+The results are therefore not presented as obtained after deduplication.
+Future training--validation partitions should keep identical and closely
+related images on the same side of the split.
+
+The absence of identical hashes in CIFAR-10 does not establish full
+independence: the audit does not detect similar views, resized versions
+or photographs from a shared source. A valid label index does not establish
+annotation correctness. An equivalent complete integrity audit of
+Tiny ImageNet has not been documented.
+
+\subsection{What do these data represent?}
+
+The datasets were selected to enable efficient, controlled comparisons
+of methods for classifying small images. Moving from 10 to 100 and 200
+classes broadens the task, but does not constitute random sampling of
+a future user population. Equal class counts facilitate accuracy comparisons;
+they do not reproduce real application frequencies.
+
+The available documentation does not characterize the distribution of
+devices, lighting conditions, locations, image quality, rare events or
+interaction contexts. Low resolution limits the observation of details
+that may determine errors in an application.
+In this study, the benchmarks provide no evidence about user tasks,
+the consequences of mistakes or the representation of social groups.
+Representativeness is therefore conditional: the data are suitable for
+evaluation within these benchmarks, but representativeness for a specific
+HCI application has not been established.
+
+\section{Experiments and iterative method development}
+
+The main performance measure is Top-1 accuracy: the proportion of images
+for which the highest-scoring class matches the reference label.
+A checkpoint is a saved state of a trained model, and a seed initializes
+the random number generator used in a training run or data split.
+Accuracy differences are reported in percentage points (\pp),
+which are distinct from relative percentage changes.
+
+\subsection{What counts as reduced computation?}
+
+Gating a feature-map channel $z_c$ can be written as
+\begin{equation}
+z'_c=g_c(x)z_c.
+\end{equation}
+A static mechanism uses the same gate for every image, whereas a dynamic
+mechanism conditions the gate on the input. Scaling or zeroing an activation
+does not remove a convolution that has already been executed.
+Structural sparsification requires physically removing channels and the
+corresponding parameters; conditional execution requires skipping operators,
+for example later blocks after an earlier classification decision.
+
+Several distinct cost proxies were used in the project.
+The proportion of small gates describes candidates for removal,
+the budget of 40 out of 64 groups specifies how many groups are selected,
+and the early-exit cost reflects the proportion of residual blocks executed.
+None of these measures automatically equals the fraction of FLOPs,
+runtime or energy consumed. Groups and blocks at different stages
+need not have equal computational costs.
+
+\subsection{Channel gating on CIFAR-10}
+
+The full audit of existing ResNet-18 checkpoints produced the results
+below. Differences were calculated using paired predictions on the same
+images, with the standard model as the reference.
+
+\begin{table}[htbp]
+\centering\small\singlespacing
+\caption{CIFAR-10: seed 42, 10\,000 test images; 95\% bootstrap confidence
+intervals for the difference, using 1\,000 resamples. Results from the present research.}
+\begin{tblr}{
+  colspec={X[1.7,c] X[0.8,c] X[1,c] X[1.5,c]},
+  row{1}={halign=c},
+}
+\toprule
+Variant & Top-1 [\%] & Difference [\pp] & 95\% CI [\pp] \\
+\midrule
+Standard ResNet-18 & 93.48 & --- & --- \\
+Static L1, $\beta=0.2$ & 91.58 & $-1.90$ & $[-2.43,-1.42]$ \\
+Static L1, $\beta=0.5$ & 91.28 & $-2.20$ & $[-2.70,-1.73]$ \\
+SE, $\beta=0.2$ & 91.49 & $-1.99$ & $[-2.45,-1.49]$ \\
+Gumbel, $\beta=0.2$ & 92.60 & $-0.88$ & $[-1.35,-0.43]$ \\
+\bottomrule
+\end{tblr}
+\end{table}
+
+All gated variants had lower accuracy for these checkpoints.
+The intervals exclude zero, but characterize uncertainty associated
+with the test sample, rather than variation from retraining.
+They do not establish that attention methods necessarily reduce accuracy.
+
+Aggregate accuracy concealed class differences. For Static L1 with
+$\beta=0.5$, accuracy for \emph{cat} decreased from 87.1\% to 81.3\%,
+a difference of $-5.8$~\pp, whereas accuracy for \emph{truck} increased from
+94.4\% to 95.0\%. Both classes had 1\,000 test samples.
+This demonstrates an uneven change in benchmark accuracy; without further
+causal analysis, it does not establish class underrepresentation or
+harm to a particular group of people.
+
+In the audit of these same models, the dense convolution operation count
+did not decrease for the static variants.
+Increasing the proportion of small gates therefore did not demonstrate
+an actual reduction in execution cost. This motivated separating gate
+diagnostics from claims about compression benefits in deployment.
+
+\subsection{From uncertainty to the value of additional computation}
+
+In the next stage of the research, the hypothesis became more specific:
+with exactly 40 out of 64 ResNet-50 channel groups retained, uncertainty
+was expected to improve group allocation across stages.
+After 200 epochs on CIFAR-100 with seed 42, global UCLA achieved
+69.82\% Top-1 accuracy, compared with 71.58\% for the utility-only control.
+The paired difference was $-1.76$~\pp, with a 95\% CI of
+$[-2.58,-0.93]$~\pp.
+The control retained the same backbone, group count and protocol;
+this does not guarantee identical actual runtime.
+
+The correlation between predicted uncertainty and classification error
+was 0.054. Diagnostics indicated that the supervision signal derived
+from training errors diminished as the model fitted the training data.
+Moreover, a single classification correctness label did not specify
+which stage would benefit from additional computation.
+This particular implementation was judged unsuccessful.
+The conclusion is limited by the single seed, test monitoring and
+the duplicate-image findings.
+
+The next hypothesis concerned \emph{value-of-compute}: the model was to
+predict the value of computation at a stage from the counterfactual
+change in loss after restricting that stage's budget.
+A training--validation--test split was introduced for CIFAR-100 and
+the allocator was improved. On Tiny ImageNet, an initial signal after
+20 epochs did not persist in the longer, 100-epoch protocol:
+\begin{center}
+\small\singlespacing
+\begin{tblr}{
+  colspec={X[0.65,c] X[1.5,c] X[1.2,c] X[1,c]},
+  row{1}={halign=c},
+}
+\toprule
+Seed & Value-of-compute [\%] & Utility-only [\%] & Difference [\pp] \\
+\midrule
+42 & 58.36 & 58.33 & $+0.03$ \\
+123 & 58.74 & 59.33 & $-0.59$ \\
+Mean & 58.55 & 58.83 & $-0.28$ \\
+\bottomrule
+\end{tblr}
+\end{center}
+These are validation results. The utility-only control for seed 42 uses
+a completed rerun; the first run was documented only up to epoch 23.
+Two seeds do not support a precise estimate
+of the effect distribution, but provide no basis for claiming superiority.
+The change in the conclusion between 20 and 100 epochs illustrates why
+a promising pilot cannot replace evaluation after longer training.
+
+An \emph{oracle} audit, with access to reference labels and legal group
+transfers, found a potential Top-1 change of approximately $+11$~\pp\
+on 512 images. This diagnoses the decision space with access to the answer;
+it is not a result achievable under ordinary inference conditions.
+Policies predicting actions from features after the initial convolutional
+module and the first and second residual stages did not exceed the accuracy
+of the majority-action baseline on held-out data.
+The small sample and restricted transfer space further limit interpretation.
+
+\subsection{Negative result for semantic feedback}
+
+A further experiment tested whether deep features used only during training
+could improve learned static channel selection.
+Both variants used Tiny ImageNet, ResNet-50, 10 out of 16 first-stage groups,
+AdamW and 20 epochs with seed 42.
+Final-epoch accuracy on the deployment path was 49.83\% with semantic
+feedback and 55.19\% for the control, a difference of $-5.36$~\pp.
+Feedback was disabled during evaluation.
+
+A plausible explanation is the mismatch between image-dependent group
+selection during training and a single ranking at deployment.
+This is a hypothesis about the failure mechanism, not an independently
+established causal relationship. Further scaling of this version was
+discontinued; one seed does not justify rejecting all feedback methods.
+The control result also does not demonstrate a speedup, since it uses
+activation masking.
+
+\subsection{Adaptive depth: a promising but incomplete pilot}
+
+Following the channel-routing results, a further hypothesis was tested:
+easier images could complete classification after the second or third
+stage of ResNet-50. Three classifier heads were trained jointly for
+20 epochs on Tiny ImageNet.
+Confidence thresholds were selected on the calibration subset to maximize
+accuracy subject to a target mean cost of no more than 85\%.
+The exit costs were $7/16$, $13/16$ and $1$, respectively,
+based on the number of residual blocks executed.
+
+\begin{table}[htbp]
+\centering\small\singlespacing
+\caption{Early exit on 5\,000 images held out from threshold selection.}
+\begin{tblr}{
+  colspec={X[1.1,c] X[1.15,c] X[1.15,c] X[0.85,c] X[1.05,c]},
+  row{1,2}={font=\small\bfseries,halign=c},
+  row{6}={bg=gray!8},
+}
+\toprule
+\SetCell[r=2]{c,m} Seed & \SetCell[c=2]{c} Top-1 accuracy [\%] &
+& \SetCell[r=2]{c,m} {$\Delta$ [\pp]}
+& \SetCell[r=2]{c,m} {Block cost\\{}[\%]} \\
+\cmidrule{2-3}
+& Early exit & Full depth & & \\
+\midrule
+42 & 54.96 & 54.96 & $0.00$ & 84.75 \\
+123 & 53.46 & 53.78 & $-0.32$ & 85.08 \\
+2026 & 54.12 & 54.02 & $+0.10$ & 84.95 \\
+\midrule
+Mean & 54.18 & 54.25 & $-0.07$ & 84.92 \\
+SD (spread) & 0.75 & 0.62 & 0.22 & 0.17 \\
+\bottomrule
+\end{tblr}
+\par\smallskip
+\begin{minipage}{\linewidth}
+\footnotesize\singlespacing
+\emph{Notes:} $\Delta$ = early exit $-$ full depth;
+a plus sign denotes an accuracy increase, a minus sign a decrease, and zero no change.
+Full depth is the final exit of the same jointly trained model.
+SD is the standard deviation across three seeds (denominator $n-1$),
+not a difference or a confidence interval, so it is reported without a plus sign.
+\end{minipage}
+\end{table}
+
+The mean result is consistent with a useful trade-off, but does not
+establish statistical equivalence in accuracy.
+It is also not a comparison with an independently trained full-depth
+model without auxiliary heads.
+For seed 123, the held-out cost difference relative to the target was $+0.08$~\pp;
+a calibration constraint does not guarantee the same cost on new data.
+
+A control trained to always terminate at stage three achieved 53.55\%
+for seed 42 and 53.67\% for seed 123, with a block cost of 81.25\%.
+However, its evaluation script uses the full validation set of 10\,000
+images, whereas the adaptive policy above is evaluated on 5\,000.
+The costs also differ. This juxtaposition is descriptive and does not
+establish superiority of either method.
+Evaluation on identical samples, comparison of accuracy--cost curves
+and a third replication of the static control are required;
+a completed result for the latter was not found.
+
+\subsection{What did the runtime measurement establish?}
+
+For seed 42, a CUDA benchmark measured execution of the network prefix
+ending at a specified stage, using batch size 1, 20 warm-up iterations
+and 60 repetitions. Each measured forward pass was followed by CUDA
+synchronization. The script uses a synthetic image tensor and specifies
+the exit in advance.
+Median times were 2.63~ms, 4.62~ms and 5.65~ms, with corresponding
+P95 values of 2.94~ms, 5.06~ms and 5.79~ms.
+
+Held-out exit frequencies were 15.06\%, 36.18\% and 48.76\%.
+The weighted sum of prefix medians gives the approximation
+\begin{equation}
+\widetilde{T}=0.1506\cdot2.63+0.3618\cdot4.62+
+0.4876\cdot5.65\approx4.82\ \mathrm{ms}.
+\end{equation}
+This is approximately 14.6\% below the median for the full prefix.
+However, \emph{a weighted sum of medians is not the median of the policy's
+runtime distribution}, nor is it a direct measurement of its mean.
+The benchmark confirms shorter execution of prefixes that omit later
+blocks. It does not measure the complete adaptive decision process,
+input preprocessing, data transfer, queueing or the interface.
+It therefore does not support a claim that the entire application
+is 14.6\% faster.
+Reproduction also requires the exact GPU model and software versions;
+stating only that CUDA was used is insufficient.
+
+\section{Verification of correctness and evaluation rigor}
+
+\subsection{Data auditing and diagnostic markers M1--M6}
+
+Six markers of model behavior were developed in the first stage of the research.
+The integrity audit complements them; it is not one of the original
+M1--M6 markers. These markers are not six independently validated measures
+of data representativeness. Their scope is summarized below.
+
+\begingroup\small\singlespacing
+\begin{longtblr}[
+  caption={Diagnostic markers: measurements, evidence and limitations.},
+  label={tab:diagnostic-markers},
+]{
+  colspec={X[1,c] X[1.5,c] X[1.5,c]},
+  rowhead=1, cells={halign=c,valign=m},
+}
+\toprule
+Marker & Measurement and available evidence & Limits of interpretation \\
+\midrule
+M1: per-class accuracy & Accuracy, sample counts and changes relative
+to a control for each class; audited on CIFAR-10. & Class results require
+uncertainty estimates and replication; they do not describe every
+context within a class. \\
+M2: error concentration & The distribution of errors relative to class
+frequencies; evaluated on CIFAR-10. & Concentration may reflect class
+difficulty. It does not establish that compression is the cause
+or that discrimination has occurred. \\
+M3: threshold stability & Gate distributions and the proportion of positive
+values below $10^{-2}$; approximately 99.9--100\% for two L1 variants
+in the marker audit. & Describes gate values, rather than physically
+removed channels, variation across training seeds or image
+representativeness. \\
+M4: gate--class dependence & Analysis of input-dependent gates;
+marked as not applicable for static attention. & Equal class counts
+prevent meaningful interpretation of correlation with class frequency.
+Mean gate values do not replace measured cost. \\
+M5: representation change & Embedding comparisons using cosine similarity
+of mean vectors, KL divergence and MMD. Cosine values for two L1 variants:
+0.9612 and 0.9558. & Similarity of means does not establish coverage
+of the data space or robustness to a domain shift. \\
+M6: quantization stability & Simulated quantization of FP32 activations
+to 256 levels; reconstruction errors and distribution statistics.
+& Does not evaluate the accuracy, memory use or runtime of an actual
+INT8 model after PTQ/QAT. \\
+\bottomrule
+\end{longtblr}
+\endgroup
+
+The six-marker audit concerns a separate series of trained models
+from the CIFAR-10 variant comparison presented earlier.
+Reference-model accuracy is 88.51\% in the marker audit and 93.48\%
+in the variant comparison. Their measurements must not be combined
+into a single result for the same model.
+The threshold sensitivity indicator in the marker audit is defined as
+\begin{equation}
+\mathrm{fragile\_ratio}=
+\frac{\#\{g:0<g<10^{-2}\}}{\#\{g:g>0\}}.
+\end{equation}
+A value close to one concerns the positive gates included in the
+denominator; it is not the proportion of all channels physically removed.
+
+Automatic warning labels assigned by the markers are working heuristics.
+The absence of a warning is not a certificate of correctness, and missing
+data must be distinguished from a measure being inapplicable.
+The markers should not be summed into a single score that could conceal
+data leakage or domain mismatch.
+
+An assessment card should bring together the intended use, study population,
+data sources, status of each audit, results with uncertainty estimates,
+and missing controls. This makes it possible to identify which conclusions
+are supported, which require a warning, and which cannot yet be drawn.
+In this report, the documented results and explicit limitations serve
+this purpose; the usefulness of the card to its intended recipients
+has not been evaluated in a separate study.
+
+\subsection{Statistics: unit of analysis and scope of uncertainty}
+
+When models are evaluated on the same images, the unit of analysis is
+a pair of predictions. For candidate model $A$ and control $B$,
+\begin{equation}
+d_i=\mathbf{1}[\hat y_i^A=y_i]-\mathbf{1}[\hat y_i^B=y_i],
+\qquad \widehat{\Delta}=\frac{1}{n}\sum_{i=1}^{n}d_i.
+\end{equation}
+The bootstrap samples shared image indices with replacement and
+recalculates $\widehat{\Delta}$.
+The CIFAR audits used 1\,000 resamples to obtain 95\% intervals.
+Recording discordant prediction pairs helps establish whether one model
+corrects the other's errors; separate accuracy intervals do not replace
+an interval for their difference.
+
+This bootstrap is conditional on the trained models and assumes
+appropriate independence of observations.
+It does not account for training randomness, training-data selection
+or hyperparameter search.
+For related images, resampling groups defined by a common source should
+be considered. For repeated training runs, paired differences should
+also be reported separately for each seed.
+The three early-exit seeds provide an initial estimate of variability;
+15\,000 predictions on the same 5\,000 images do not constitute
+15\,000 independent images.
+
+Class results require caution: CIFAR-100 has 100 test images per class,
+while the full Tiny ImageNet validation set has 50.
+Partitioning validation reduces these counts, which need not remain equal.
+Testing multiple classes and variants increases the risk of chance
+findings; the current class analyses should be treated as diagnostic.
+A future study should prespecify its primary comparison and account
+for multiplicity in secondary analyses, for example using Holm's correction.
+
+If the maximum acceptable accuracy loss is $\delta$, establishing
+noninferiority requires the appropriate lower confidence bound
+for the difference to exceed $-\delta$.
+Equivalence requires an interval contained within prespecified equivalence
+margins. A small mean difference or a nonsignificant result alone
+does not meet these conditions.
+The 0.5~\pp\ threshold used in the pilot is a criterion for continuing
+research, not a validated acceptance margin for HCI users.
+
+\subsection{Implementation correctness and reproducibility}
+
+Tests were developed to check data partitions, the budget controller,
+legality of oracle actions and early-exit execution.
+Their role is to detect technical errors, such as an incorrect group
+count or execution of blocks beyond the selected exit.
+Passing such tests does not establish the research hypothesis or
+the correctness of dataset labels.
+This report draws on completed experimental results and analysis of their implementation;
+preparing it does not constitute retraining or independent reproduction
+of the complete experimental campaign.
+
+Full reproduction of a result requires sample identifiers, data and
+checkpoint hashes, the code version, configuration, training and split
+seeds, the epoch selection rule, predictions and an environment description.
+The research documentation includes experimental settings, training histories,
+selected audits and saved model states,
+but a complete record of predictions, embeddings and per-image timing
+should not be assumed for every experiment.
+Missing fields must be collected before the relevant analysis,
+rather than replaced with zero.
+Results for the best validation checkpoint and the final epoch must
+be reported separately.
+
+\section{Methodological context in the literature}
+
+Squeeze-and-Excitation demonstrates input-dependent channel weighting
+\cite{senet}.
+BilevelPruning combines dynamic and static channel pruning, including
+permanent removal of some parameters \cite{bilevel},
+while Pick-or-Mix studies dynamic channel sampling and its efficiency
+\cite{pix}.
+These studies motivate separating the role of attention from actual
+structural and computational reductions.
+Their numerical results are not compared directly with the local pilots
+because the protocols and execution conditions differ.
+
+Meronen and colleagues examine overconfidence in dynamic networks
+and the importance of modeling uncertainty when deciding on
+a computational budget \cite{overconfidence}.
+This motivates evaluating calibration and error risk when computation
+terminates early. A high softmax value alone is insufficient justification
+for trusting a prediction.
+
+Documenting data provenance, composition and intended uses follows
+the \emph{Datasheets for Datasets} approach \cite{datasheets}.
+Reporting performance across subgroups and defining a model's scope
+of use is consistent with \emph{Model Cards} \cite{modelcards}.
+The proposed assessment card combines these principles with CNN
+compression diagnostics.
+Its value for engineering decisions still requires separate validation;
+it is not presented as a new, already validated measure of representativeness.
+The cited studies provide selected methodological reference points,
+rather than an exhaustive literature review.
+
+\section{Subsequent hypotheses and verification plan}
+
+The results changed both the modeling direction and the evaluation
+methodology.
+Error uncertainty was followed by the question of the value of additional
+computation; oracle results were examined in terms of predictability
+without access to labels; and channel masking was supplemented by
+an experiment on executable block skipping.
+The next iterations should address specific gaps in the evidence:
+
+\begin{enumerate}
+\item \emph{Integrity hypothesis:} the ranking of models on CIFAR-100
+will remain unchanged after excluding test records that overlap
+with training data.
+The analysis should report affected indices, class counts and paired
+changes in performance, while retaining evaluation on the canonical test.
+This is a planned sensitivity analysis, not a claim that its outcome
+is already known.
+\item \emph{Adaptation hypothesis:} early exit will offer a useful
+trade-off relative to fixed-depth models at comparable measured latency.
+The evaluation samples should be aligned, the seed-2026 control completed,
+and uncertainty in paired differences estimated.
+Longer training is justified after this control.
+\item \emph{Coverage hypothesis:} images poorly represented in the
+training data will more frequently produce additional errors under
+the adaptive policy.
+A distance measure from training examples in embedding space can be
+prespecified, and accuracy, calibration and exit decisions compared
+across regions of different density.
+Regions should be defined using training or validation data and
+the hypothesis tested on held-out observations.
+\item \emph{Robustness hypothesis:} the selected policy will maintain
+acceptable risk under blur, noise and changes in image quality.
+Synthetic perturbation tests should follow a fixed protocol and
+be supplemented with data from the target device.
+PCA/UMAP projections may assist interpretation, but do not replace
+quantitative evaluation or domain-specific data.
+\item \emph{HCI usefulness hypothesis:} reducing computation will
+improve human task performance without increasing harmful errors.
+The complete execution path should first be measured on the target
+device, including P50, P95 and P99 latency, followed by a user study
+with a defined population, task and acceptance criteria.
+\end{enumerate}
+
+The sample size for the planned noninferiority study should be selected
+using the expected number of discordant prediction pairs and the maximum
+acceptable accuracy loss.
+In a user study, the independent unit may be the participant rather
+than each click or task repetition.
+Sample size and analysis should reflect that structure.
+These analyses are not claimed as part of the experiments completed
+to date.
+
+\section{Social responsibility and limits of use}
+
+Compression may make image recognition more accessible on less capable
+hardware, but its accuracy costs may affect some usage conditions
+more than others.
+For example, poor lighting or a lower-quality camera may change
+recognition difficulty.
+The current data do not establish who would be affected by such
+limitations; a particular social distribution of effects should not
+be assumed without evidence.
+
+Image classes do not constitute validated social groups.
+Per-class analysis diagnoses performance but is not a complete fairness
+audit. An attention weight alone is also not a human-understandable
+causal explanation of a decision.
+Recipients of the assessment should be informed about test conditions,
+uncertainty, possible consequences of errors and uses excluded
+from the model's evaluated scope.
+
+Before an application involving people is considered, data and criteria
+must be defined with a domain expert and appropriately selected
+participants.
+A plan for collecting new data should address informed consent where
+applicable, data minimization, protection of identifiable images
+and access rules.
+Using a public benchmark does not replace checking its terms of use
+or assessing whether its data are suitable for transfer to a new domain.
+
+For uncertain inputs, possible responses include running the full
+computational path, presenting a warning or referring the case to
+a person. Each option requires evaluation: the full network can also
+make mistakes, and a warning may not be understood.
+No study has yet assessed the effects of these mechanisms on task
+completion time, cognitive workload or the appropriateness of user trust.
+Energy has not been measured either, so a lower cost proxy is not
+interpreted as evidence of energy savings.
+
+\section{Answer to the reliability and representativeness question}
+
+The collected data provide a documented basis for comparing particular
+checkpoints and diagnosing problems in the studied methods on small
+image benchmarks.
+They support the conclusion that the evaluated dynamic gating variants
+did not demonstrate superiority over the corresponding controls,
+and that small gate values do not establish execution savings.
+The replicated early-exit signal justifies further evaluation,
+but does not yet establish equivalence in accuracy, superiority
+over fixed depth or acceleration of the complete application.
+
+The credibility of these conclusions has explicit limits:
+CIFAR-100 duplicates, historical test monitoring, few training seeds,
+different evaluation subsets in some comparisons and incomplete
+measurement of deployment conditions.
+Representativeness for a specific HCI system remains unestablished,
+because the target population of images, devices, tasks and users
+has not been defined and studied.
+
+The contribution of the iterations completed so far is both to narrow
+the technical hypotheses and to improve the evaluation process.
+The next stage should supply the missing data and controls so that
+decisions about model use follow from meaningful evidence and
+an understanding of its limitations.
+
+\begin{thebibliography}{99}
+\bibitem{cifar} A. Krizhevsky, \emph{Learning Multiple Layers of Features
+from Tiny Images}, 2009. Dataset documentation:
+\url{https://cave.cs.toronto.edu/kriz/cifar.html}.
+\bibitem{tinyimagenet} Y. Le, X. Yang, \emph{Tiny ImageNet Visual Recognition
+Challenge}, Stanford CS231n, 2015.
+\url{https://cs231n.stanford.edu/reports/2015/pdfs/yle_project.pdf}.
+\bibitem{senet} J. Hu, L. Shen, G. Sun,
+\emph{Squeeze-and-Excitation Networks}, CVPR, 2018, pp. 7132--7141.
+\url{https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html}.
+\bibitem{bilevel} S. Gao, Y. Zhang, F. Huang, H. Huang,
+\emph{BilevelPruning: Unified Dynamic and Static Channel Pruning for
+Convolutional Neural Networks}, CVPR, 2024, pp. 16090--16100.
+\url{https://openaccess.thecvf.com/content/CVPR2024/html/Gao_BilevelPruning_Unified_Dynamic_and_Static_Channel_Pruning_for_Convolutional_Neural_CVPR_2024_paper.html}.
+\bibitem{pix} A. Kumar, D. Kim, J. Park, L. Behera,
+\emph{Pick-or-Mix: Dynamic Channel Sampling for ConvNets}, CVPR, 2024,
+pp. 5873--5882. \url{https://arxiv.org/abs/2406.10935}.
+\bibitem{overconfidence} L. Meronen et al.,
+\emph{Fixing Overconfidence in Dynamic Neural Networks}, WACV, 2024.
+\url{https://arxiv.org/abs/2302.06359}.
+\bibitem{datasheets} T. Gebru et al., \emph{Datasheets for Datasets},
+Communications of the ACM, 64(12), 2021, pp. 86--92.
+\url{https://arxiv.org/abs/1803.09010}.
+\bibitem{modelcards} M. Mitchell et al., \emph{Model Cards for Model Reporting},
+FAT*, 2019, pp. 220--229. \url{https://arxiv.org/abs/1810.03993}.
+\end{thebibliography}
+\end{document}

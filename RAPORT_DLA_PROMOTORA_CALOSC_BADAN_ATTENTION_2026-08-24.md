@@ -1,85 +1,40 @@
-# Raport dla promotora: pełny przebieg badań nad attention, channel pruning i adaptive inference
+# Sprawozdanie z badań nad attention, channel pruning i adaptive inference
 
 **Autorka projektu:** Lidia Cichońska  
 **Data raportu:** 24 sierpnia 2026 r.  
 **Zakres:** `attention_v2` oraz `attentionv3`  
-**Charakter dokumentu:** szczegółowe sprawozdanie badawcze, obejmujące wyniki pozytywne, wyniki negatywne, ograniczenia, decyzje go/no-go i plan dalszych prac
+**Charakter dokumentu:** kompletne sprawozdanie obejmujące wyniki pozytywne,
+negatywne i nierozstrzygnięte, ograniczenia, decyzje go/no-go oraz plan
+dalszych prac
 
 ---
 
-## Jak w skrócie opowiedzieć o badaniach promotorowi
+## Krótkie podsumowanie
 
-### Gotowa wypowiedź, około 2–3 minuty
+Badania nie potwierdziły przewagi dynamicznego channel attention nad prostymi,
+dopasowanymi kosztowo kontrolami. UCLA uzyskał 69,82% wobec 71,58% dla
+utility-only, value-of-compute po 100 epokach osiągnął średnio 58,55% wobec
+58,83%, a training-only semantic feedback pogorszył wynik o 5,36 punktu
+procentowego. Wysoka proxy sparsity miękkich bramek nie przełożyła się na
+rzeczywiste przyspieszenie, ponieważ konwolucje nadal były wykonywane.
 
-> Badania zaczęłam od sprawdzenia, czy mechanizmy channel attention mogą
-> nauczyć się, które kanały CNN są zbędne, i dzięki temu ograniczyć koszt
-> obliczeń bez dużej utraty dokładności. W `attention_v2` porównałam statyczne
-> bramki, SE i Gumbel attention. Modele zachowywały wysoką accuracy, a
-> statyczne bramki wskazywały dużo potencjalnie zbędnych kanałów. Na
-> CIFAR-100 wariant z β=0,5 osiągnął 71,59% wobec 71,83% baseline'u przy 45,5%
-> gate'ów poniżej progu. To był obiecujący sygnał redundancji, ale nie realny
-> speedup, ponieważ konwolucje nadal były wykonywane. Na CIFAR-10 wszystkie
-> warianty attention były słabsze od dense baseline'u, a wybór kanałów był
-> bardzo wrażliwy na próg.
->
-> W `attentionv3` zaostrzyłam protokół: wszystkie metody otrzymywały dokładnie
-> ten sam budżet 40 z 64 grup kanałów. Najpierw sprawdziłam, czy uncertainty
-> pomaga rozdzielać budżet między etapy ResNet-50. To nie wyszło — po 200
-> epokach UCLA uzyskał 69,82%, a prostszy utility-only 71,58%. Predykowana
-> uncertainty prawie nie korelowała z błędami modelu. Następnie próbowałam
-> uczyć wartość dodatkowego obliczenia na podstawie kontrfaktycznych targetów.
-> Po 100 epokach ta metoda również nie pokonała utility-only.
->
-> Ciekawy wynik dał oracle: gdy podczas audytu użyłam prawdziwej etykiety,
-> najlepsze transfery budżetu poprawiały accuracy o około 11 punktów
-> procentowych. Oznacza to, że lepsze decyzje istnieją, ale kolejne eksperymenty
-> pokazały, że nie da się ich wiarygodnie przewidzieć z cech dostępnych podczas
-> inferencji. Dlatego dynamiczny channel routing zamknęłam jako wynik
-> negatywny, zamiast dalej stroić ten sam mechanizm.
->
-> Najbardziej obiecujący okazał się pivot do adaptive depth, czyli wcześniejszego
-> kończenia obliczeń. W trzech seedach prosta policy confidence zachowała
-> średnio accuracy w granicy 0,07 punktu procentowego względem pełnej sieci,
-> przy koszcie około 84,9%. Zaimplementowany prefix-forward dał około 14,6%
-> niższą medianę czasu dla batch size 1. To jest pierwszy wynik pokazujący
-> rzeczywiste pomijanie obliczeń, a nie tylko zerowanie aktywacji.
->
-> Wynik nie jest jeszcze gotowy publikacyjnie. Adaptive depth wygrał ze
-> static-depth w jednym seedzie, ale minimalnie przegrał w drugim. Teraz trzeba
-> dokończyć trzeci seed, wykonać dłuższy trening oraz pełny benchmark
-> accuracy–risk–latency. Dodatkowo sprawdziłam semantic feedback attention
-> sugerowany przez przegląd literatury, ale pogorszył on wynik o 5,36 punktu
-> procentowego, więc tę implementację również zamknęłam.
->
-> Podsumowując: nie udało się potwierdzić przewagi dynamicznego channel
-> attention, ale uzyskałam wartościowy, dobrze kontrolowany wynik negatywny,
-> framework diagnostyczny oraz obiecujący kierunek adaptive inference. Dalszy
-> plan to najpierw rozstrzygnąć adaptive versus static depth, a dopiero po
-> pozytywnej bramce przejść do 100 epok, większego zbioru i finalnego
-> benchmarku publikacyjnego.
+Jednocześnie audyt oracle wykazał potencjał lepszej alokacji kanałów na
+poziomie około 11 punktów procentowych, lecz decyzji tej nie udało się
+wiarygodnie przewidzieć z cech dostępnych podczas inferencji. Najbardziej
+obiecującym kierunkiem okazał się adaptive depth: w trzech seedach zachował
+średnią dokładność w granicy −0,07 punktu procentowego względem pełnej sieci
+przy koszcie 84,92%, a dla batch size 1 obniżył szacowaną medianę czasu o około
+14,6%.
 
-### Wersja bardzo krótka, około 30 sekund
-
-> Sprawdziłam kilka generacji channel attention: statyczne bramki, uncertainty,
-> kontrfaktyczne value-of-compute, klonowanie decyzji oracle i semantic
-> feedback. Żadna dynamiczna metoda kanałowa nie pokonała prostych kontroli;
-> najmocniejszy wynik UCLA był gorszy od utility-only o 1,76 pp, a semantic
-> feedback o 5,36 pp od static. Jednocześnie oracle wykazał około 11 pp
-> potencjału, którego policy nie umiała przewidzieć. Najlepszy aktualny kierunek
-> to early exit: trzy seedy zachowują accuracy przy około 15% mniejszym koszcie,
-> a batch-1 latency spadło o około 14,6%. Teraz muszę domknąć porównanie ze
-> static-depth i dłuższy protokół przed sformułowaniem claimu publikacyjnego.
-
-### Jedno zdanie podsumowania
-
-> Channel attention dał dobrze udokumentowany wynik negatywny i użyteczne
-> narzędzia diagnostyczne, natomiast adaptive depth jest pierwszym kierunkiem,
-> który zachowuje jakość i rzeczywiście pomija część obliczeń, choć wymaga
-> jeszcze mocniejszych kontroli.
+Wynik adaptive depth pozostaje nierozstrzygnięty publikacyjnie: metoda wygrała
+ze static-depth w jednym seedzie i minimalnie przegrała w drugim, a trzeci
+seed nie został jeszcze wykonany. Najbliższym krokiem jest domknięcie tej
+kontroli, a następnie — tylko po pozytywnej bramce — dłuższy trening i pełny
+benchmark accuracy–risk–latency.
 
 ---
 
-## 1. Streszczenie dla promotora
+## 1. Przebieg badań i najważniejsze wyniki
 
 Projekt rozpoczął się od badania uczonych bramek kanałowych w CNN. Pierwszym
 celem było uzyskanie kompresji przez nadawanie filtrom uczonych wag attention,
@@ -715,7 +670,7 @@ skutkiem przerwanego treningu ani OOM.
 
 ---
 
-## 10. Synteza: co wyszło
+## 10. Synteza wyników pozytywnych
 
 ### 10.1. Wyniki metodologiczne i infrastrukturalne
 
@@ -756,7 +711,7 @@ falsyfikowania hipotez:
 
 ---
 
-## 11. Synteza: co nie wyszło
+## 11. Synteza wyników negatywnych
 
 ### 11.1. Wyniki negatywne potwierdzone eksperymentalnie
 
@@ -798,7 +753,7 @@ pozycje, których nie należy przedstawiać jako „prawie potwierdzonych”.
 
 ---
 
-## 12. Odpowiedź na pytanie: gdzie w projekcie jest attention?
+## 12. Rola attention w projekcie
 
 Attention występowało w kilku rolach:
 
@@ -1042,7 +997,7 @@ Najważniejsze commity końcowej fazy:
 
 ---
 
-## 18. Pytania do decyzji z promotorem
+## 18. Pytania do omówienia z promotorem
 
 1. Czy głównym celem publikacji ma być nowa metoda, czy rygorystyczna analiza
    granic dynamicznego channel routing?
